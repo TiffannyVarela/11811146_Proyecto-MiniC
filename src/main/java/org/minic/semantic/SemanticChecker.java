@@ -1,4 +1,4 @@
-package semantic;
+package org.minic.semantic;
 
 import org.minic.ast.*;
 

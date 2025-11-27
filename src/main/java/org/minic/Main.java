@@ -4,6 +4,8 @@ import java.io.*;
 import java.nio.file.*;
 import java.util.*;
 import org.antlr.v4.runtime.*;
+import org.minic.ast.AstBuilder;
+import org.minic.ast.AstNode;
 
 public class Main {
     public static void main(String[] args) {
@@ -70,9 +72,9 @@ public class Main {
         //Parseo y construcción del árbol
         MiniC.ProgramContext tree = parser.program();
         AstBuilder astBuilder = new AstBuilder();
-        AstNode ast = astBuilder.visit(tree);
+        AstNode ast = astBuilder.build(tree);
 
         // Aquí puedes agregar más pasos, como la generación de código o análisis semántico
-        Compiler.compile(null, testFile);
+        Compiler.compile(ast, testFile);
     }
 }

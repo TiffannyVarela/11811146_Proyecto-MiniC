@@ -11,7 +11,7 @@ public class BlockNode extends StatementNode {
     }
 
     public BlockNode(List<StatementNode> statements) {
-        this.statements = statements;
+        this.statements = new ArrayList<>(statements);
     }
 
     public List<StatementNode> getStatements() {
@@ -25,6 +25,17 @@ public class BlockNode extends StatementNode {
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("BlockNode{\n");
+        for (StatementNode stmt : statements) {
+            sb.append("  ").append(stmt.toString()).append("\n");
+        }
+        sb.append("}");
+        return sb.toString();
     }
     
 }

@@ -1,4 +1,5 @@
 package org.minic.ast;
+ import java.util.*;
 
 public class ParamNode extends AstNode {
     private String name;
@@ -15,6 +16,10 @@ public class ParamNode extends AstNode {
 
     public String getType() {
         return type;
+    }
+
+    public void addDeclarationNode(AstNode varDeclNode) {
+        // No implementado para ParamNode
     }
 
     @Override

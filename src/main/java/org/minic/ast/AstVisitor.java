@@ -15,13 +15,18 @@ public interface AstVisitor<T> {
     T visit(ExpressionStatementNode node);//
 
     //Expresiones
-    T visit (AssigmentNode node);//
+    T visit (AssignmentNode node);//
     T visit (BinaryOpNode node);
     T visit (UnaryOpNode node);
     T visit (VariableNode node);//
     T visit (IdentifierNode node);
     T visit (LiteralNode node);
     T visit (FunctionCallNode node);//
+    T visit (NumberNode node);//
+    T visit (ParamNode node);
+    T visit (CharNode node);//
+    T visit (StringNode node);//
+    T visit (BooleanNode node);//
 
     //Nodo raiz
     T visit(ProgramNode node);

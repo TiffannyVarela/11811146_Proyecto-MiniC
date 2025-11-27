@@ -5,18 +5,25 @@ import java.util.List;
 
 public class FunctionNode extends DeclarationNode {
     private String returnType;
+    private String name;
     private List<VarDeclNode> parameters;
     private BlockNode body;
 
     public FunctionNode(String returnType, String name, List<VarDeclNode> parameters, BlockNode body) {
         super(name);
         this.returnType = returnType;
-        this.parameters = parameters != null ? parameters : new ArrayList<>();
+        this.name = name;
+        //this.parameters = parameters != null ? parameters : new ArrayList<>();
+        this.parameters = parameters;
         this.body = body;
     }
 
     public String getReturnType() {
         return returnType;
+    }
+
+    public String getName() {
+        return name;
     }
 
     public List<VarDeclNode> getParameters() {
@@ -29,6 +36,10 @@ public class FunctionNode extends DeclarationNode {
 
     public BlockNode getBody() {
         return body;
+    }
+
+    public void setBody(BlockNode body) {
+        this.body = body;
     }
 
     @Override

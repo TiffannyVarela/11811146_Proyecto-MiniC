@@ -5,22 +5,14 @@ import java.util.List;
 
 public class ProgramNode extends AstNode {
 
-    private List<DeclarationNode> declarationsNodes;
+    private List<AstNode> declarationsNodes;
     
     public ProgramNode() {
         this.declarationsNodes = new ArrayList<>();
     }
 
-    public ProgramNode(List<DeclarationNode> declarationsNodes) {
-        this.declarationsNodes = declarationsNodes;
-    }
-
-    public List<DeclarationNode> getDeclarationsNodes() {
+    public List<AstNode> getDeclarationsNodes() {
         return declarationsNodes;
-    }
-
-    public void setDeclarationsNodes(List<DeclarationNode> declarationsNodes) {
-        this.declarationsNodes = declarationsNodes;
     }
 
     public void addDeclarationNode(DeclarationNode declarationNode) {
