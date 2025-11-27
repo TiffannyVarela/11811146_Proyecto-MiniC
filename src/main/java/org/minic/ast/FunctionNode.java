@@ -1,6 +1,5 @@
 package org.minic.ast;
 
-import java.util.ArrayList;
 import java.util.List;
 
 public class FunctionNode extends DeclarationNode {

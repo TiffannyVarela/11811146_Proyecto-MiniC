@@ -6,10 +6,6 @@ public class SymbolTable {
     private final Map<String, Symbol> symbols = new HashMap<>();
     private final SymbolTable parent;
 
-    private SymbolTable() {
-        this.parent = null;
-    }
-
     public SymbolTable(SymbolTable parent) {
         this.parent = parent;
     }

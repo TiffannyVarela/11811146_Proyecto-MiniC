@@ -1,5 +1,4 @@
 package org.minic.ast;
- import java.util.*;
 
 public class ParamNode extends AstNode {
     private String name;
