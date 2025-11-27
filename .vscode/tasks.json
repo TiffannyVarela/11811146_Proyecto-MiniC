@@ -1,0 +1,22 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "ANTLR: Generate and compiler",
+            "type": "shell",
+            "command": ".\\scripts\\build.bat",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "problemMatcher": [
+                "$javac"
+            ]
+        },
+        {
+            "label": "Clean",
+            "type": "shell",
+            "command": ".\\scripts\\clean.bat",
+        }
+    ]
+}

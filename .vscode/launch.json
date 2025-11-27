@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "Ejecutar Main",
+            "request": "launch",
+            "mainClass": "org.minic.Main",
+            "cwd": "${workspaceFolder}",
+            "args": "tests/lista_pruebas.txt",
+            "console": "integratedTerminal"
+        }
+    ]
+}
