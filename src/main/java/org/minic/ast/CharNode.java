@@ -1,13 +1,21 @@
 package org.minic.ast;
 
-public class CharNode extends ExpressionNode {
-    private String value;
+public class CharNode extends LiteralNode {
+    private char value;
 
-    public CharNode(String value) {
-        this.value = value;
+    public CharNode(String text) {
+        this.value = extractCharValue(text);
     }
 
-    public String getValue() {
+    private static char extractCharValue(String text) {
+        if (text.length() >= 3) {
+            return text.charAt(1);
+        } else {
+            return text.charAt(0);
+        }
+    }
+
+    public char getValue() {
         return value;
     }
 
@@ -15,5 +23,4 @@ public class CharNode extends ExpressionNode {
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);
     }
-    
 }

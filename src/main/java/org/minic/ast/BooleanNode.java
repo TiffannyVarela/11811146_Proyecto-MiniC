@@ -1,6 +1,6 @@
 package org.minic.ast;
 
-public class BooleanNode extends ExpressionNode {
+public class BooleanNode extends LiteralNode {
     private boolean value;
 
     public BooleanNode(boolean value) {
@@ -15,5 +15,4 @@ public class BooleanNode extends ExpressionNode {
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);
     }
-    
 }

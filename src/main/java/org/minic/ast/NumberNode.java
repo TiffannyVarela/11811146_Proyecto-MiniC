@@ -1,13 +1,17 @@
 package org.minic.ast;
 
-public class NumberNode extends ExpressionNode {
-    private String value;
+public class NumberNode extends LiteralNode {
+    private int value;
 
-    public NumberNode(String value) {
+    public NumberNode(int value) {
         this.value = value;
     }
 
-    public String getValue() {
+    public NumberNode(String text) {
+        this.value = Integer.parseInt(text);
+    }
+
+    public int getValue() {
         return value;
     }
 
@@ -15,5 +19,4 @@ public class NumberNode extends ExpressionNode {
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);
     }
-    
 }

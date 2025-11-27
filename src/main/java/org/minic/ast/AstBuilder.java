@@ -3,7 +3,6 @@ package org.minic.ast;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.minic.MiniCBaseListener;
 import org.minic.MiniC;
-import org.minic.MiniCLexer;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -131,10 +130,16 @@ public class AstBuilder extends MiniCBaseListener {
 
         //Crear bloque para la rama "else" si existe
         StatementNode elseBlock = null;
-        if(ctx.ELSE() != null && statementListStack.isEmpty()){
-            List<StatementNode> elseStatements = statementListStack.pop();
-            if(!elseStatements.isEmpty()){
-                elseBlock = elseStatements.size() == 1 ? elseStatements.get(0) : new BlockNode(elseStatements);
+        if(ctx.ELSE() != null){
+            if (!statementListStack.isEmpty()) {
+                List<StatementNode> current = statementListStack.peek();
+                if (!current.isEmpty()) {
+                    StatementNode last = current.get(current.size()-1);
+                    if (last instanceof BlockNode) {
+                        elseBlock = last;
+                        current.remove(current.size()-1);
+                    }
+                }
             }
         }
 
@@ -146,17 +151,85 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
+    public void enterDoWhileStatement(MiniC.DoWhileStatementContext ctx){
+        DoWhileNode doWhileNode = new DoWhileNode(null, null);
+        statementListStack.peek().add(doWhileNode);
+        nodeStack.push(doWhileNode);
+        statementListStack.push(new ArrayList<>());
+    }
+
+    @Override
+    public void exitDoWhileStatement(MiniC.DoWhileStatementContext ctx){
+        List<StatementNode> bodyStatements = statementListStack.pop();
+        nodeStack.pop();
+
+        StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
+        ExpressionNode condition = buildExpression(ctx.expression());
+
+        DoWhileNode update = new DoWhileNode(body, condition);
+
+        List<StatementNode> current = statementListStack.peek();
+        current.set(current.size()-1, update);
+    }
+
+    @Override
+    public void enterForStatement(MiniC.ForStatementContext ctx){
+        StatementNode iniNode = null;
+        if (ctx.expressionStatement() !=null && ctx.expressionStatement().expression() != null) {
+            iniNode = new ExpressionStatementNode(buildExpression(ctx.expressionStatement().expression()));
+        }
+
+        ExpressionNode condition = ctx.expression(0) != null ? buildExpression(ctx.expression(0)) : null;
+        ExpressionNode increment = ctx.expression(1) != null ? buildExpression(ctx.expression(1)) : null;
+
+        ForNode forNode = new ForNode(iniNode, condition, increment, null);
+        statementListStack.peek().add(forNode);
+        nodeStack.push(forNode);
+        statementListStack.push(new ArrayList<>());
+    }
+
+    @Override
+    public void exitForStatement(MiniC.ForStatementContext ctx){
+        List<StatementNode> bodyStatementNodes = statementListStack.pop();
+        ForNode forNode = (ForNode) nodeStack.pop();
+
+        StatementNode body = bodyStatementNodes.size() == 1 ? bodyStatementNodes.get(0) : new BlockNode(bodyStatementNodes);
+
+        ForNode update = new ForNode(forNode.getInit(), forNode.getCondition(), forNode.getIncrement(), body);
+
+        List<StatementNode> current = statementListStack.peek();
+        current.set(current.size()-1, update);
+    }
+
+    @Override
     public void enterAssignmentStatement(MiniC.AssignmentStatementContext ctx) {
         String varName = ctx.lvalue().Identifier().getText();
         ExpressionNode value = buildExpression(ctx.expression());
-        //AssignmentNode assignmentNode = new AssignmentNode(varName, value);
+        AssignmentNode assignmentNode = new AssignmentNode(varName, value);
+        if (!statementListStack.isEmpty()) {
+            statementListStack.peek().add(assignmentNode);
+        }
         System.out.println("Assigment: "+varName+"="+value);
+    }
+
+    @Override
+    public void enterExpressionStatement(MiniC.ExpressionStatementContext ctx){
+        if (ctx.expression() != null) {
+            ExpressionNode expressionNode = buildExpression(ctx.expression());
+            ExpressionStatementNode expressionStatementNode = new ExpressionStatementNode(expressionNode);
+            if (!statementListStack.isEmpty()) {
+                statementListStack.peek().add(expressionStatementNode);
+            }
+        }
     }
 
     @Override
     public void enterReturnStatement(MiniC.ReturnStatementContext ctx) {
         ExpressionNode returnValue = ctx.expression() != null ? buildExpression(ctx.expression()) : null;
-        //ReturnNode returnNode = new ReturnNode(returnValue);
+        ReturnNode returnNode = new ReturnNode(returnValue);
+        if (!statementListStack.isEmpty()) {
+            statementListStack.peek().add(returnNode);
+        }
         System.out.println("Return: "+returnValue);
     }
 
@@ -165,10 +238,12 @@ public class AstBuilder extends MiniCBaseListener {
             return null;
         }
 
-        if (ctx.getChildCount()==1) {
+        /*if (ctx.getChildCount()==1) {
             return buildPrimaryExpression(ctx.logicalOrExpression().logicalAndExpression(0).equalityExpression(0).relationalExpression(0).additiveExpression(0).multiplicativeExpression(0).unaryExpression(0).primaryExpression());
         }
-        return null;
+        return null;*/
+
+        return buildLogicalOrExpression(ctx.logicalOrExpression());
     }
 
     private ExpressionNode buildPrimaryExpression(MiniC.PrimaryExpressionContext ctx) {
@@ -179,20 +254,20 @@ public class AstBuilder extends MiniCBaseListener {
 
         //Char
         if (ctx.CharConstant() != null) {
-            //return new CharNode(ctx.CharConstant().getText());
+            return new CharNode(ctx.CharConstant().getText());
         }
 
         //String
         if (ctx.StringLiteral() != null) {
-            //return new StringNode(ctx.StringLiteral().getText());
+            return new StringNode(ctx.StringLiteral().getText());
         }
 
         //Boolean
         if (ctx.TRUE() != null) {
-            //return new BooleanNode(true);
+            return new BooleanNode(true);
         }
         if (ctx.FALSE() != null) {
-            //return new BooleanNode(false);
+            return new BooleanNode(false);
         }
 
         //Identifier
@@ -218,6 +293,125 @@ public class AstBuilder extends MiniCBaseListener {
             return buildExpression(ctx.expression());
         }
         return null;
+    }
+
+    private ExpressionNode buildLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx) {
+        if (ctx.logicalAndExpression().size() == 1) {
+            return buildLogicalAndExpression(ctx.logicalAndExpression(0));
+        }
+
+        // Aquí podrías manejar la construcción de nodos para expresiones lógicas "OR"
+        ExpressionNode left = buildLogicalAndExpression(ctx.logicalAndExpression(0));
+        for (int i = 1; i < ctx.logicalAndExpression().size(); i++) {
+            ExpressionNode right = buildLogicalAndExpression(ctx.logicalAndExpression(i));
+            left = new BinaryOpNode("||", left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx) {
+        if (ctx.equalityExpression().size() == 1) {
+            return buildEqualityExpression(ctx.equalityExpression(0));
+        }
+        ExpressionNode left = buildEqualityExpression(ctx.equalityExpression(0));
+        for (int i = 1; i < ctx.equalityExpression().size(); i++) {
+            ExpressionNode right = buildEqualityExpression(ctx.equalityExpression(i));
+            left = new BinaryOpNode("&&", left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildEqualityExpression(MiniC.EqualityExpressionContext ctx) {
+        if (ctx.relationalExpression().size() == 1) {
+            return buildRelationalExpression(ctx.relationalExpression(0));
+        }
+
+        ExpressionNode left = buildRelationalExpression(ctx.relationalExpression(0));
+        for (int i = 1; i < ctx.relationalExpression().size(); i++) {
+            ExpressionNode right = buildRelationalExpression(ctx.relationalExpression(i));
+            String operator = ctx.getChild(2 * i - 1).getText(); // Obtener el operador (== o !=)
+            left = new BinaryOpNode(operator, left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildRelationalExpression(MiniC.RelationalExpressionContext ctx) {
+        if (ctx.additiveExpression().size() == 1) {
+            return buildAdditiveExpression(ctx.additiveExpression(0));
+        }
+
+        //Manejas expreciones relacionales (<,>,<=,>=)
+        ExpressionNode left = buildAdditiveExpression(ctx.additiveExpression(0));
+        for (int i=1; i< ctx.additiveExpression().size(); i++){
+            String operator = ctx.getChild(2*i-1).getText();
+            ExpressionNode right = buildAdditiveExpression(ctx.additiveExpression(i));
+            left = new BinaryOpNode(operator, left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildAdditiveExpression(MiniC.AdditiveExpressionContext ctx){
+        if (ctx.multiplicativeExpression().size() == 1) {
+            return buildMultiplicativeExpression(ctx.multiplicativeExpression(0));
+        }
+
+        //Manejar +,*
+        ExpressionNode left = buildMultiplicativeExpression(ctx.multiplicativeExpression(0));
+        for(int i=1; i<ctx.multiplicativeExpression().size(); i++){
+            String operator = ctx.getChild(2*i-1).getText();
+            ExpressionNode right = buildMultiplicativeExpression(ctx.multiplicativeExpression(i));
+            left=new BinaryOpNode(operator, left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx){
+        if (ctx.unaryExpression().size() == 1) {
+            return buildUnaryExpression(ctx.unaryExpression(0));
+        }
+
+        //Manejar *,/,%
+        ExpressionNode left = buildUnaryExpression(ctx.unaryExpression(0));
+        for(int i=1; i<ctx.unaryExpression().size(); i++){
+            String operator = ctx.getChild(2*i-1).getText();
+            ExpressionNode right = buildUnaryExpression(ctx.unaryExpression(i));
+            left = new BinaryOpNode(operator, left, right);
+        }
+        return left;
+    }
+
+    private ExpressionNode buildUnaryExpression(MiniC.UnaryExpressionContext ctx){
+        //Expresion primaria, sin operador unario
+        if (ctx.primaryExpression() != null) {
+            return buildPrimaryExpression(ctx.primaryExpression());
+        }
+
+        //Manejar !,-,&,*
+        String operator = ctx.getChild(0).getText();
+        ExpressionNode operand = buildUnaryExpression(ctx.unaryExpression());
+        return new UnaryOpNode(operator, operand);
+    }
+
+    @Override
+    public void enterWhileStatement(MiniC.WhileStatementContext ctx){
+        ExpressionNode condition = buildExpression(ctx.expression());
+        WhileNode whileNode = new WhileNode(condition, null);
+        statementListStack.peek().add(whileNode);
+        nodeStack.push(whileNode);
+        statementListStack.push(new ArrayList<>());
+    }
+
+    @Override
+    public void exitWhileStatement(MiniC.WhileStatementContext ctx){
+        List<StatementNode> bodyStatements = statementListStack.pop();
+        WhileNode whileNode = (WhileNode) nodeStack.pop();
+
+        StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
+
+        WhileNode updateWhileNode = new WhileNode(whileNode.getCondition(), body);
+
+        List<StatementNode> currentStatements = statementListStack.peek();
+        currentStatements.set(currentStatements.size()-1, updateWhileNode);
     }
 
     @Override
