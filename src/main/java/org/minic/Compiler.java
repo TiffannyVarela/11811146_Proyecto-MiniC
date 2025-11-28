@@ -4,29 +4,28 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import org.minic.ast.*;
+import org.minic.backend.mips.MipsGenerator;
 import org.minic.semantic.SemanticChecker;
 
 public class Compiler {
-    public static void compile(AstNode ast, String sourceFile){
+    public static void compile(AstNode ast, String sourceFile) {
        try {
-            System.out.println("=================== Generación del Árbol AST ==================");
-            System.out.println("AST generado correctamente.");
-            System.out.println("=================== Análisis Semántico ==================");
+            System.out.println("\n--- Análisis Semántico ---");
             SemanticChecker semanticChecker = new SemanticChecker();
             semanticChecker.check(ast);
+            System.out.println("Análisis semántico completado sin errores");
 
-            System.out.println("=================== Generación de Código Intermedio ==================");
-            //IrGenerator irGenerator = new IrGenerator();
-            //Object irProgram = irGenerator.generate(ast);
-
-            System.out.println("=================== Generación de Código MIPS ==================");
-            //MipsGenerator mipsGenerator = new MipsGenerator();
-            //String mipsCode = mipsGenerator.generate(irProgram, sourceFile);
-
-            //String outputFilePath = sourceFile.replace(".mc", ".s");
-            //writeToFile(mipsCode, outputFilePath);
-            //System.out.println("Código MIPS generado en: " + outputFilePath);
+            System.out.println("\n--- Generación de Código MIPS ---");
+            MipsGenerator mipsGenerator = new MipsGenerator();
+            String mipsCode = mipsGenerator.generate(ast);
+            
+            String outputFilePath = sourceFile.replace(".mc", ".s");
+            writeToFile(mipsCode, outputFilePath);
+            System.out.println("Código MIPS generado en: " + outputFilePath);
+            
+            // Mostrar información del AST
             printAstInfo(ast);
+            
        } catch (CompilationException e) {
            throw e;
        } catch (Exception e) {
@@ -34,28 +33,52 @@ public class Compiler {
        }
     }
 
-    private static void printAstInfo(AstNode ast){
-        if(ast instanceof ProgramNode){
+    private static void printAstInfo(AstNode ast) {
+        if (ast instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) ast;
-            System.out.println("Número de declaraciones en el programa: " + programNode.getDeclarationsNodes().size());
-            for(AstNode decl : programNode.getDeclarationsNodes()){
-                if(decl instanceof FunctionNode){
+            System.out.println("\n--- INFORMACIÓN DEL PROGRAMA ---");
+            System.out.println("Número de declaraciones: " + programNode.getDeclarationsNodes().size());
+            
+            int functionCount = 0;
+            int globalVarCount = 0;
+            
+            for (AstNode decl : programNode.getDeclarationsNodes()) {
+                if (decl instanceof FunctionNode) {
                     FunctionNode funcNode = (FunctionNode) decl;
-                    System.out.println("Función: " + funcNode.getName() +" -> " + funcNode.getReturnType() + ", Parámetros: " + funcNode.getParameters().size());
-                }
-                else if(decl instanceof VarDeclNode){
+                    String paramsInfo = funcNode.getParameters() != null ? 
+                                       String.valueOf(funcNode.getParameters().size()) : "0";
+                    System.out.println("Función: " + funcNode.getName() + 
+                                     " -> " + funcNode.getReturnType() + 
+                                     " (parámetros: " + paramsInfo + ")");
+                    functionCount++;
+                } else if (decl instanceof VarDeclNode) {
                     VarDeclNode varNode = (VarDeclNode) decl;
-                    System.out.println("Variable Global: " + varNode.getName() + " Tipo: " + varNode.getType());
+                    String arrayInfo = varNode.isArray() ? 
+                                     "[tamaño: " + varNode.getArraySize() + "]" : "";
+                    System.out.println("Variable: " + varNode.getName() + 
+                                     " - tipo: " + varNode.getType() + " " + arrayInfo);
+                    globalVarCount++;
                 }
             }
+            
+            System.out.println("\n--- RESUMEN ---");
+            System.out.println("• Funciones: " + functionCount);
+            System.out.println("• Variables globales: " + globalVarCount);
+            System.out.println("• Total de declaraciones: " + (functionCount + globalVarCount));
         }
     }
 
-    private static void writeToFile(String content, String filePath){
+    private static void writeToFile(String content, String filePath) {
         try {
             Files.write(Paths.get(filePath), content.getBytes());
+            System.out.println("Archivo guardado: " + filePath);
+            
+            // Mostrar tamaño del archivo generado
+            long fileSize = Files.size(Paths.get(filePath));
+            System.out.println("Tamaño del archivo: " + fileSize + " bytes");
+            
         } catch (Exception e) {
-            throw new RuntimeException("Error al escribir el archivo: "+filePath + ": " + e.getMessage());
+            throw new RuntimeException("Error al escribir el archivo: " + filePath + ": " + e.getMessage());
         }
     }
 }

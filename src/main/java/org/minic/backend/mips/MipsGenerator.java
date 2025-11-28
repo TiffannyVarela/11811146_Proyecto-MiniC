@@ -8,26 +8,26 @@ public class MipsGenerator {
     private int tempCount = 0;
     private int labelCount = 0;
 
-    //Gestion de registros temporales
-    private Stack<String> avaiableTemps = new Stack<>();
+    // Gestión de registros temporales
+    private Stack<String> availableTemps = new Stack<>();
 
-    //Tabla de simbolos para variables globales
+    // Tabla de símbolos para variables globales
     private Map<String, Integer> globalVars = new HashMap<>();
     private Map<String, Integer> localVars = new HashMap<>();
     private int currentLocal = 0;
 
-    //MAnejo de Strings literales
+    // Manejo de Strings literales
     private Map<String, String> stringLiterals = new HashMap<>();
     private int stringLiteralsCount = 0;
 
-    //Secciones de codigo
+    // Secciones de código
     private List<String> data = new ArrayList<>();
     private List<String> text = new ArrayList<>();
 
-    public String generate (AstNode ast){
+    public String generate(AstNode ast) {
         initializeSections();
 
-        //Procesar AST
+        // Procesar AST
         if (ast instanceof ProgramNode) {
             generateProgram((ProgramNode) ast);
         }
@@ -52,65 +52,64 @@ public class MipsGenerator {
         code.append(String.join("\n", text));
     }
 
-    private void generateProgram(ProgramNode program){
+    private void generateProgram(ProgramNode program) {
         // Primera pasada: procesar variables globales
-        for(AstNode node : program.getChildren()){
+        for (AstNode node : program.getChildren()) {
             if (node instanceof VarDeclNode) {
                 generateGlobalVar((VarDeclNode) node);
             }
         }
         
         // Segunda pasada: procesar funciones
-        for(AstNode node : program.getChildren()){
+        for (AstNode node : program.getChildren()) {
             if (node instanceof FunctionNode) {
                 generateFunction((FunctionNode) node);
             }
         }
     }
 
-    private void generateGlobalVar(VarDeclNode varDeclNode){
+    private void generateGlobalVar(VarDeclNode varDeclNode) {
         String name = varDeclNode.getName();
         String label = "_" + name;
 
         if (varDeclNode.isArray()) {
-            //Array global
+            // Array global
             int size = calculateArraySize(varDeclNode);
-            data.add(label + ": .space" + (size *4)); //4 bites por int
-            globalVars.put(name, size*4);
+            data.add(label + ": .space " + (size * 4)); // 4 bytes por int
+            globalVars.put(name, size * 4);
         } else {
-            //Variables simple
-            data.add(label + " .word 0");
+            data.add(label + ": .word 0");
             globalVars.put(name, 4);
         }
     }
 
-    private void generateFunction(FunctionNode functionNode){
+    private void generateFunction(FunctionNode functionNode) {
         int localesSize = calculateLocalVarsSize(functionNode);
         String funcName = functionNode.getName();
-        text.add(funcName + ": ");
+        text.add(funcName + ":");
 
-        //Prologo
+        // Prólogo
         text.add("  addiu $sp, $sp, -8");
         text.add("  sw $ra, 4($sp)");
         text.add("  sw $fp, 0($sp)");
         text.add("  move $fp, $sp");
 
-        //Espacio para variables locales
+        // Espacio para variables locales
         if (localesSize > 0) {
             text.add("  addiu $sp, $sp, -" + localesSize);
         }
 
-        //Generar cuerpo de la funcion
+        // Generar cuerpo de la función
         generateStatement(functionNode.getBody());
 
-        //Si es main
+        // Si es main
         if (funcName.equals("main")) {
-            //Salir al final del main
+            // Salir al final del main
             text.add("  li $v0, 10");
             text.add("  syscall");
         }
 
-        //Epilogo
+        // Epílogo
         if (localesSize > 0) {
             text.add("  addiu $sp, $sp, " + localesSize);
         }
@@ -118,14 +117,13 @@ public class MipsGenerator {
         text.add("  lw $ra, 4($sp)");
         text.add("  addiu $sp, $sp, 8");
         text.add("  jr $ra");
-
-        
     }
 
-    private void generateStatement(StatementNode statementNode){
+    private void generateStatement(StatementNode statementNode) {
         if (statementNode == null) {
             return;
         }
+        
         if (statementNode instanceof ExpressionStatementNode) {
             ExpressionStatementNode exprStmt = (ExpressionStatementNode) statementNode;
             if (exprStmt.getExpressionNode() != null) {
@@ -158,10 +156,101 @@ public class MipsGenerator {
     }
     
     private void generateBlockStatement(BlockNode block) {
-        for(StatementNode node : block.getStatements()){
-            generateStatement(node);
+        for (StatementNode stmt : block.getStatements()) {
+            generateStatement(stmt);
         }
     }
+
+    private void generateIfStatement(IfNode ifStmt) {
+        String condition = generateExpression(ifStmt.getCondition());
+        String elseLabel = newLabel();
+        String endLabel = newLabel();
+        
+        text.add("  beqz " + condition + ", " + elseLabel);
+        freeTemp(condition);
+        
+        generateStatement(ifStmt.getThenBlock());
+        text.add("  j " + endLabel);
+        
+        text.add(elseLabel + ":");
+        if (ifStmt.getElseBlock() != null) {
+            generateStatement(ifStmt.getElseBlock());
+        }
+        
+        text.add(endLabel + ":");
+    }
+    
+    private void generateWhileStatement(WhileNode whileStmt) {
+        String startLabel = newLabel();
+        String endLabel = newLabel();
+        
+        text.add(startLabel + ":");
+        String condition = generateExpression(whileStmt.getCondition());
+        text.add("  beqz " + condition + ", " + endLabel);
+        freeTemp(condition);
+        
+        generateStatement(whileStmt.getBody());
+        text.add("  j " + startLabel);
+        text.add(endLabel + ":");
+    }
+
+    private void generateDoWhileStatement(DoWhileNode doWhileNode) {
+        String start = newLabel();
+        String condition = newLabel();
+
+        text.add(start + ":");
+        generateStatement(doWhileNode.getBody());
+
+        text.add(condition + ":");
+        String condString = generateExpression(doWhileNode.getCondition());
+        text.add("  bnez " + condString + ", " + start);
+        freeTemp(condString);
+    }
+
+    private void generateForStatement(ForNode forNode) {
+        // Inicialización
+        if (forNode.getInit() != null) {
+            generateStatement(forNode.getInit());
+        }
+
+        String start = newLabel();
+        String end = newLabel();
+
+        text.add(start + ":");
+
+        // Condición
+        if (forNode.getCondition() != null) {
+            String condicion = generateExpression(forNode.getCondition());
+            text.add("  beqz " + condicion + ", " + end);
+            freeTemp(condicion);
+        }
+
+        // Cuerpo
+        generateStatement(forNode.getBody());
+
+        // Incremento
+        if (forNode.getIncrement() != null) {
+            String increment = generateExpression(forNode.getIncrement());
+            freeTemp(increment);
+        }
+
+        text.add("  j " + start);
+        text.add(end + ":");
+    }
+
+    private void generateAssignment(AssignmentNode assign) {
+        String value = generateExpression(assign.getValue());
+        ExpressionNode target = assign.getTarget();
+        
+        if (target instanceof IdentifierNode) {
+            String varName = ((IdentifierNode) target).getName();
+            storeVariable(varName, value);
+        }
+        
+        freeTemp(value);
+    }
+
+    // ========== GENERACIÓN DE EXPRESIONES ==========
 
     private String generateExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
@@ -411,83 +500,6 @@ public class MipsGenerator {
         text.add("  move " + result + ", $v0");
         return result;
     }
-    
-    private void generateIfStatement(IfNode ifStmt) {
-        String condition = generateExpression(ifStmt.getCondition());
-        String elseLabel = newLabel();
-        String endLabel = newLabel();
-        
-        text.add("  beqz " + condition + ", " + elseLabel);
-        freeTemp(condition);
-        
-        generateStatement(ifStmt.getThenBlock());
-        text.add("  j " + endLabel);
-        
-        text.add(elseLabel + ":");
-        if (ifStmt.getElseBlock() != null) {
-            generateStatement(ifStmt.getElseBlock());
-        }
-        
-        text.add(endLabel + ":");
-    }
-    
-    private void generateWhileStatement(WhileNode whileStmt) {
-        String startLabel = newLabel();
-        String endLabel = newLabel();
-        
-        text.add(startLabel + ":");
-        String condition = generateExpression(whileStmt.getCondition());
-        text.add("  beqz " + condition + ", " + endLabel);
-        freeTemp(condition);
-        
-        generateStatement(whileStmt.getBody());
-        text.add("  j " + startLabel);
-        text.add(endLabel + ":");
-    }
-
-    private void generateDoWhileStatement(DoWhileNode doWhileNode){
-        String start = newLabel();
-        String condition = newLabel();
-
-        text.add(start + ": ");
-        generateStatement(doWhileNode.getBody());
-
-        text.add(condition + ": ");
-        String condString = generateExpression(doWhileNode.getCondition());
-        text.add("  bnez " + condString + ", " + start);
-        freeTemp(condString);
-    }
-
-    private void generateForStatement(ForNode forNode){
-        //Inicializacion
-        if (forNode.getInit() != null) {
-            generateStatement(forNode.getInit());
-        }
-
-        String start = newLabel();
-        String end = newTemp();
-
-        text.add(start + ": ");
-
-        //Condicion
-        if (forNode.getCondition() != null) {
-            String condicion = generateExpression(forNode.getCondition());
-            text.add("  beqz " + condicion + ", " + end);
-            freeTemp(condicion);
-        }
-
-        //Cuerpo
-        generateStatement(forNode.getBody());
-
-        //Incremento
-        if (forNode.getIncrement() != null) {
-            String increment = generateExpression(forNode.getIncrement());
-            freeTemp(increment);
-        }
-
-        text.add("  j " + start);
-        text.add(end + ":");
-    }
 
     private String generateBoolean(BooleanNode booleanNode) {
         String temp = newTemp();
@@ -518,23 +530,11 @@ public class MipsGenerator {
         return temp;
     }
 
-    private void generateAssignment(AssignmentNode assign) {
-        String value = generateExpression(assign.getValue());
-        ExpressionNode target = assign.getTarget();
-        
-        if (target instanceof IdentifierNode) {
-            String varName = ((IdentifierNode) target).getName();
-            storeVariable(varName, value);
-        }
-        
-        freeTemp(value);
-    }
-    
-    //Auxiliares
+    // ========== MÉTODOS AUXILIARES ==========
 
     private String newTemp() {
-        if (!avaiableTemps.isEmpty()) {
-            return avaiableTemps.pop();
+        if (!availableTemps.isEmpty()) {
+            return availableTemps.pop();
         }
         if (tempCount < 10) {
             return "$t" + (tempCount++);
@@ -545,7 +545,7 @@ public class MipsGenerator {
     
     private void freeTemp(String temp) {
         if (temp.startsWith("$t") && tempCount > 0) {
-            avaiableTemps.push(temp);
+            availableTemps.push(temp);
         }
     }
     
@@ -570,47 +570,40 @@ public class MipsGenerator {
         currentLocal = -4;
         
         if (function.getParameters() != null) {
-            for (ParamNode param : function.getParameters()) {
-                allocateLocalVar(param.getName(), false);
+            for (VarDeclNode param : function.getParameters()) {
+                allocateLocalVar(param.getName(), param.isArray());
             }
         }
-        
+
         if (function.getBody() != null) {
-            calculateLocalVarsInBlock(function.getBody());
         }
         
+        // Margen para temporales
         currentLocal -= 32;
         
         return Math.abs(currentLocal) - 8;
     }
     
-    private void calculateLocalVarsInBlock(BlockNode block) {
-        for (StatementNode stmt : block.getStatements()) {
-            if (stmt instanceof VarDeclNode) {
-                VarDeclNode varDecl = (VarDeclNode) stmt;
-                allocateLocalVar(varDecl.getName(), varDecl.isArray());
-            } else if (stmt instanceof BlockNode) {
-                calculateLocalVarsInBlock((BlockNode) stmt);
-            }
-        }
-    }
     
     private void allocateLocalVar(String name, boolean isArray) {
         if (isArray) {
+            // Para arrays, reservar espacio para todos los elementos
             VarDeclNode varDecl = findVarDecl(name);
             if (varDecl != null) {
                 int arraySize = calculateArraySize(varDecl);
                 currentLocal -= arraySize * 4;
             } else {
-                currentLocal -= 16;
+                currentLocal -= 16; // Tamaño por defecto
             }
         } else {
+            // Para variables simples, 4 bytes
             currentLocal -= 4;
         }
         localVars.put(name, currentLocal);
     }
     
     private VarDeclNode findVarDecl(String varName) {
+        // En una implementación real, buscarías en la tabla de símbolos
         return null;
     }
     
