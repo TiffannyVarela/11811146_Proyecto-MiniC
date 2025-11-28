@@ -17,10 +17,6 @@ public class ParamNode extends AstNode {
         return type;
     }
 
-    public void addDeclarationNode(AstNode varDeclNode) {
-        // No implementado para ParamNode
-    }
-
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

@@ -25,6 +25,10 @@ public class AssignmentNode extends StatementNode{
         this.value = value;
     }
 
+    public ExpressionNode getTarget(){
+        return new IdentifierNode(variableName);
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

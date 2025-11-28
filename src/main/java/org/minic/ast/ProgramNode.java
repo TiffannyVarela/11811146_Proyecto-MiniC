@@ -19,6 +19,10 @@ public class ProgramNode extends AstNode {
         declarationsNodes.add(declarationNode);
     }
 
+    public List<AstNode> getChildren(){
+        return new ArrayList<>(declarationsNodes);
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

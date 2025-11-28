@@ -30,6 +30,9 @@ typeSpecifier
     | BOOL
     | VOID
     | STRING
+    | typeSpecifier LBRACK IntegerConstant RBRACK //1 dimencion
+    | typeSpecifier LBRACK IntegerConstant RBRACK LBRACK IntegerConstant RBRACK //2 dimenciones
+    | typeSpecifier STAR //Punteros
     ;
 
 functionDefinition
@@ -129,8 +132,9 @@ primaryExpression
     | TRUE
     | FALSE
     | LPAREN expression RPAREN
-    |lvalue
-    |callExpression
+    | lvalue
+    | callExpression
+    | Identifier
     ;
 
 callExpression
@@ -139,4 +143,9 @@ callExpression
 
 lvalue
     : Identifier (LBRACK expression RBRACK)*
+    | Identifier
+    | lvalue LBRACK expression RBRACK
+    | lvalue LBRACK expression RBRACK LBRACK expression RBRACK
+    | STAR expression
+    | AMP lvalue
     ;
