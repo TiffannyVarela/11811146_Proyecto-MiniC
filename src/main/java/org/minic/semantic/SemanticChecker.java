@@ -21,8 +21,18 @@ public class SemanticChecker {
     public void check(AstNode ast) {
         errors.clear();
         
+        System.out.println("=== INICIANDO ANÁLISIS SEMÁNTICO ===");
+        System.out.println("Tipo del nodo raíz: " + ast.getClass().getSimpleName());
+
         if (ast instanceof ProgramNode) {
-            visitProgram((ProgramNode) ast);
+            ProgramNode program = (ProgramNode) ast;
+            System.out.println("ProgramNode tiene " + program.getChildren().size() + " hijos");
+            for (AstNode node : program.getChildren()) {
+                System.out.println(" - Hijo: " + node.getClass().getSimpleName());
+            }
+            visitProgram(program);
+        } else {
+            addError("El nodo raíz debe ser un ProgramNode");
         }
         
         if (!errors.isEmpty()) {
@@ -32,6 +42,7 @@ public class SemanticChecker {
             }
             throw new RuntimeException("Compilación fallida debido a errores semánticos");
         }
+        System.out.println("=== FIN ANÁLISIS SEMÁNTICO ===");
     }
 
     public List<String> getErrors() {
@@ -150,32 +161,15 @@ public class SemanticChecker {
         SymbolTable oldScope = currentScope;
         currentScope = blockScope;
         
+        System.out.println("SEMANTIC CHECKER: Visitando bloque con " + block.getStatements().size() + " statements");
+        
         try {
             for (StatementNode stmt : block.getStatements()) {
+                System.out.println("SEMANTIC CHECKER: Procesando statement: " + stmt.getClass().getSimpleName());
                 visitStatement(stmt);
             }
         } finally {
             currentScope = oldScope;
-        }
-    }
-
-    private void visitStatement(StatementNode stmt) {
-        if (stmt instanceof ExpressionStatementNode) {
-            visitExpressionStatement((ExpressionStatementNode) stmt);
-        } else if (stmt instanceof ReturnNode) {
-            visitReturnStatement((ReturnNode) stmt);
-        } else if (stmt instanceof BlockNode) {
-            visitBlock((BlockNode) stmt);
-        } else if (stmt instanceof IfNode) {
-            visitIfStatement((IfNode) stmt);
-        } else if (stmt instanceof WhileNode) {
-            visitWhileStatement((WhileNode) stmt);
-        } else if (stmt instanceof DoWhileNode) {
-            visitDoWhileStatement((DoWhileNode) stmt);
-        } else if (stmt instanceof ForNode) {
-            visitForStatement((ForNode) stmt);
-        } else if (stmt instanceof AssignmentNode) {
-            visitAssignment((AssignmentNode) stmt);
         }
     }
 
@@ -198,6 +192,39 @@ public class SemanticChecker {
         } else if (!Type.VOID.equals(currentFunctionReturnType)) {
             addError("Función '" + currentFunction + "' debe retornar un valor de tipo " + currentFunctionReturnType);
         }
+    }
+
+    public Void visit(VarDeclNode node) {
+        String name = node.getName();
+        String type = node.getType();
+        
+        System.out.println("SEMANTIC CHECKER: Registrando variable en tabla de símbolos: " + type + " " + name);
+        
+        // Registrar la variable en la tabla de símbolos
+        if (currentScope.lookupCurrentScope(name) != null) {
+            addError("Variable '" + name + "' ya está declarada en este ámbito");
+            return null;
+        }
+        
+        Symbol symbol = new Symbol(name, type, false);
+        if (currentScope.addSymbol(symbol)) {
+            System.out.println("SEMANTIC CHECKER: ✓ Variable '" + name + "' registrada exitosamente");
+        } else {
+            System.out.println("SEMANTIC CHECKER: ✗ No se pudo registrar variable '" + name + "'");
+            addError("No se pudo agregar variable '" + name + "'");
+        }
+        
+        // Verificar inicialización si existe
+        if (node.hasInitialNode()) {
+            System.out.println("SEMANTIC CHECKER: Verificando inicialización para: " + name);
+            String initType = visitExpression(node.getInitialNode());
+            if (!Type.isCompatible(type, initType)) {
+                addError("Inicialización incompatible para variable '" + name + 
+                        "'. Esperado: " + type + ", Obtenido: " + initType);
+            }
+        }
+        
+        return null;
     }
 
     private void visitIfStatement(IfNode ifStmt) {
@@ -262,8 +289,8 @@ public class SemanticChecker {
         ExpressionNode target = assign.getTarget();
         String valueType = visitExpression(assign.getValue());
         
-        if (target instanceof IdentifierNode) {
-            String varName = ((IdentifierNode) target).getName();
+        if (target instanceof VariableNode) {  // ← CAMBIA IdentifierNode por VariableNode
+            String varName = ((VariableNode) target).getName();
             Symbol symbol = currentScope.lookup(varName);
             
             if (symbol == null) {
@@ -285,11 +312,31 @@ public class SemanticChecker {
         }
     }
 
+    private String visitVariable(VariableNode variable) {
+        String name = variable.getName();
+        Symbol symbol = currentScope.lookup(name);
+        
+        System.out.println("SEMANTIC CHECKER: Buscando variable: " + name);
+        
+        if (symbol == null) {
+            addError("Variable no declarada: '" + name + "'");
+            return Type.VOID;
+        }
+        
+        if (symbol.isFunction()) {
+            addError("'" + name + "' es una función, no se puede usar como variable");
+            return Type.VOID;
+        }
+        
+        System.out.println("SEMANTIC CHECKER: ✓ Variable encontrada: " + name + " de tipo " + symbol.getType());
+        return symbol.getType();
+    }
+
     private String visitExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
             return Type.INT;
-        } else if (expr instanceof IdentifierNode) {
-            return visitIdentifier((IdentifierNode) expr);
+        } else if (expr instanceof VariableNode) {  // ← Agrega esta línea
+            return visitVariable((VariableNode) expr);
         } else if (expr instanceof BinaryOpNode) {
             return visitBinaryOp((BinaryOpNode) expr);
         } else if (expr instanceof UnaryOpNode) {
@@ -304,25 +351,8 @@ public class SemanticChecker {
             return Type.CHAR;
         }
         
-        addError("Expresión de tipo desconocido");
+        addError("Expresión de tipo desconocido: " + (expr != null ? expr.getClass().getSimpleName() : "null"));
         return Type.VOID;
-    }
-
-    private String visitIdentifier(IdentifierNode identifier) {
-        String name = identifier.getName();
-        Symbol symbol = currentScope.lookup(name);
-        
-        if (symbol == null) {
-            addError("Identificador no declarado: '" + name + "'");
-            return Type.VOID;
-        }
-        
-        if (symbol.isFunction()) {
-            addError("'" + name + "' es una función, no se puede usar como variable");
-            return Type.VOID;
-        }
-        
-        return symbol.getType();
     }
 
     private String visitBinaryOp(BinaryOpNode binOp) {
@@ -396,83 +426,121 @@ public class SemanticChecker {
     }
 
     private String visitFunctionCall(FunctionCallNode call) {
-    String funcName = call.getFunctionName();
-    Symbol symbol = currentScope.lookup(funcName);
-    
-    if (symbol == null) {
-        addError("Función no declarada: '" + funcName + "'");
-        return Type.VOID;
-    }
-    
-    if (!symbol.isFunction()) {
-        addError("'" + funcName + "' no es una función");
-        return Type.VOID;
-    }
-    
-    List<ExpressionNode> args = call.getArguments();
-    
-    if (isRuntimeFunction(funcName)) {
-        return handleRuntimeFunctionCall(funcName, args);
+        String funcName = call.getFunctionName();
+        Symbol symbol = currentScope.lookup(funcName);
+        
+        if (symbol == null) {
+            addError("Función no declarada: '" + funcName + "'");
+            return Type.VOID;
+        }
+        
+        if (!symbol.isFunction()) {
+            addError("'" + funcName + "' no es una función");
+            return Type.VOID;
+        }
+        
+        List<ExpressionNode> args = call.getArguments();
+        
+        if (isRuntimeFunction(funcName)) {
+            return handleRuntimeFunctionCall(funcName, args);
+        }
+
+        for (int i = 0; i < args.size(); i++) {
+            String argType = visitExpression(args.get(i));
+            if (Type.VOID.equals(argType)) {
+                addError("Argumento " + (i + 1) + " de la función '" + funcName + "' es inválido");
+            }
+        }
+        
+        return symbol.getType();
     }
 
-    for (int i = 0; i < args.size(); i++) {
-        String argType = visitExpression(args.get(i));
-        if (Type.VOID.equals(argType)) {
-            addError("Argumento " + (i + 1) + " de la función '" + funcName + "' es inválido");
+    private boolean isRuntimeFunction(String funcName) {
+        return funcName.equals("print_int") || funcName.equals("print_str") || 
+            funcName.equals("print_char") || funcName.equals("print_bool") ||
+            funcName.equals("println") || funcName.equals("read_int") || 
+            funcName.equals("read_char");
+    }
+
+    private String handleRuntimeFunctionCall(String funcName, List<ExpressionNode> args) {
+        switch (funcName) {
+            case "print_int":
+            case "print_str":
+            case "print_char":
+            case "print_bool":
+                if (args.size() != 1) {
+                    addError("Función '" + funcName + "' requiere exactamente 1 argumento, se proporcionaron " + args.size());
+                } else {
+                    String argType = visitExpression(args.get(0));
+                    if (funcName.equals("print_int") && !Type.INT.equals(argType)) {
+                        addError("Función 'print_int' requiere argumento de tipo int, no " + argType);
+                    } else if (funcName.equals("print_str") && !Type.STRING.equals(argType)) {
+                        addError("Función 'print_str' requiere argumento de tipo string, no " + argType);
+                    } else if (funcName.equals("print_char") && !Type.CHAR.equals(argType)) {
+                        addError("Función 'print_char' requiere argumento de tipo char, no " + argType);
+                    } else if (funcName.equals("print_bool") && !Type.BOOLEAN.equals(argType)) {
+                        addError("Función 'print_bool' requiere argumento de tipo bool, no " + argType);
+                    }
+                }
+                return Type.VOID; 
+                
+            case "println":
+                if (args.size() != 0) {
+                    addError("Función 'println' no requiere argumentos, se proporcionaron " + args.size());
+                }
+                return Type.VOID;
+                
+            case "read_int":
+            case "read_char":
+                if (args.size() != 0) {
+                    addError("Función '" + funcName + "' no requiere argumentos, se proporcionaron " + args.size());
+                }
+                return funcName.equals("read_int") ? Type.INT : Type.CHAR;
+                
+            default:
+                return Type.VOID;
         }
     }
-    
-    return symbol.getType();
-}
-
-private boolean isRuntimeFunction(String funcName) {
-    return funcName.equals("print_int") || funcName.equals("print_str") || 
-           funcName.equals("print_char") || funcName.equals("print_bool") ||
-           funcName.equals("println") || funcName.equals("read_int") || 
-           funcName.equals("read_char");
-}
-
-private String handleRuntimeFunctionCall(String funcName, List<ExpressionNode> args) {
-    switch (funcName) {
-        case "print_int":
-        case "print_str":
-        case "print_char":
-        case "print_bool":
-            if (args.size() != 1) {
-                addError("Función '" + funcName + "' requiere exactamente 1 argumento, se proporcionaron " + args.size());
-            } else {
-                String argType = visitExpression(args.get(0));
-                if (funcName.equals("print_int") && !Type.INT.equals(argType)) {
-                    addError("Función 'print_int' requiere argumento de tipo int, no " + argType);
-                } else if (funcName.equals("print_str") && !Type.STRING.equals(argType)) {
-                    addError("Función 'print_str' requiere argumento de tipo string, no " + argType);
-                } else if (funcName.equals("print_char") && !Type.CHAR.equals(argType)) {
-                    addError("Función 'print_char' requiere argumento de tipo char, no " + argType);
-                } else if (funcName.equals("print_bool") && !Type.BOOLEAN.equals(argType)) {
-                    addError("Función 'print_bool' requiere argumento de tipo bool, no " + argType);
-                }
-            }
-            return Type.VOID; 
-            
-        case "println":
-            if (args.size() != 0) {
-                addError("Función 'println' no requiere argumentos, se proporcionaron " + args.size());
-            }
-            return Type.VOID;
-            
-        case "read_int":
-        case "read_char":
-            if (args.size() != 0) {
-                addError("Función '" + funcName + "' no requiere argumentos, se proporcionaron " + args.size());
-            }
-            return funcName.equals("read_int") ? Type.INT : Type.CHAR;
-            
-        default:
-            return Type.VOID;
-    }
-}
 
     private void addError(String message) {
         errors.add(message);
     }
+
+    public Void visit(VarDeclStatementNode node) {
+        System.out.println("SEMANTIC CHECKER: === VISITANDO VarDeclStatementNode ===");
+        System.out.println("SEMANTIC CHECKER: Variable: " + node.getVarDeclNode().getType() + " " + node.getVarDeclNode().getName());
+        visit(node.getVarDeclNode());
+        System.out.println("SEMANTIC CHECKER: === FIN VarDeclStatementNode ===");
+        return null;
+    }
+
+    private void visitStatement(StatementNode stmt) {
+        System.out.println("SEMANTIC CHECKER: visitStatement - Tipo: " + stmt.getClass().getSimpleName());
+        
+        if (stmt instanceof ExpressionStatementNode) {
+            visitExpressionStatement((ExpressionStatementNode) stmt);
+        } else if (stmt instanceof ReturnNode) {
+            visitReturnStatement((ReturnNode) stmt);
+        } else if (stmt instanceof BlockNode) {
+            visitBlock((BlockNode) stmt);
+        } else if (stmt instanceof IfNode) {
+            visitIfStatement((IfNode) stmt);
+        } else if (stmt instanceof WhileNode) {
+            visitWhileStatement((WhileNode) stmt);
+        } else if (stmt instanceof DoWhileNode) {
+            visitDoWhileStatement((DoWhileNode) stmt);
+        } else if (stmt instanceof ForNode) {
+            visitForStatement((ForNode) stmt);
+        } else if (stmt instanceof AssignmentNode) {
+            visitAssignment((AssignmentNode) stmt);
+        } else if (stmt instanceof VarDeclStatementNode) {
+            System.out.println("SEMANTIC CHECKER: Encontrado VarDeclStatementNode - llamando a visit");
+            visit((VarDeclStatementNode) stmt);
+        } else {
+            addError("Tipo de statement no soportado: " + stmt.getClass().getSimpleName());
+        }
+    }
 }
+
+
+

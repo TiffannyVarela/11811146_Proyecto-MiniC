@@ -1,7 +1,6 @@
 package org.minic.optimizer;
 
 import org.minic.ast.*;
-import java.util.*;
 
 public class ConstantFolder {
     

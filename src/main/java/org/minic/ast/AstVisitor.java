@@ -38,5 +38,6 @@ public interface AstVisitor<T> {
     T visit (LiteralNode node);    
     T visit (ParamNode node);
     T visit (StatementNode node);
+    T visit (VarDeclStatementNode node);
 
 }

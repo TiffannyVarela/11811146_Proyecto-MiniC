@@ -35,6 +35,7 @@ public class AstBuilder extends MiniCBaseListener {
     @Override
     public void enterDeclaration(MiniCParser.DeclarationContext ctx) {
         String varType = ctx.typeSpecifier().getText();
+        System.out.println("=== AST BUILDER: Procesando declaración ===");
 
         for (MiniCParser.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
             String varName = initDeclCtx.Identifier().getText();
@@ -46,46 +47,39 @@ public class AstBuilder extends MiniCBaseListener {
                 arraySize = Integer.parseInt(initDeclCtx.IntegerConstant(0).getText());
             }
 
-            // Verificar inicialización solo si los métodos existen
-            try {
-                if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
-                    initialNode = buildExpression(initDeclCtx.expression());
-                }
-            } catch (Exception e) {
-                // Si los métodos no existen, ignorar inicialización
-                System.out.println("Advertencia: Inicialización no soportada en esta versión del parser");
+            // Verificar inicialización
+            if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
+                initialNode = buildExpression(initDeclCtx.expression());
+                System.out.println("AST BUILDER: Tiene inicialización: " + varName + " = " + initialNode);
             }
 
-            VarDeclNode varDeclNode;
-            if (initialNode != null) {
-                varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize, initialNode);
-            } else {
-                varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize);
-            }
+            // Crear nodo de declaración
+            VarDeclNode varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize, initialNode);
 
-            // CORRECCIÓN: Verificar qué tipo de nodo está en el tope de la pila
+            System.out.println("AST BUILDER: Creando declaración: " + varType + " " + varName);
+
+            // Manejar según el contexto
             AstNode currentNode = nodeStack.peek();
             
             if (currentNode instanceof ProgramNode) {
-                // Declaración global - agregar al ProgramNode
+                // Declaración global
                 ProgramNode programNode = (ProgramNode) currentNode;
                 programNode.addDeclarationNode(varDeclNode);
+                System.out.println("AST BUILDER: Agregada declaración GLOBAL: " + varName);
+                
             } else if (currentNode instanceof FunctionNode) {
-                // Declaración local dentro de función - agregar al bloque actual
-                // No agregar al FunctionNode directamente, se maneja en el statement list
+                // Declaración local
                 if (!statementListStack.isEmpty()) {
-                    // Crear una declaración como statement
-                    // Necesitarías crear un nuevo tipo de nodo o usar AssignmentNode
-                    if (initialNode != null) {
-                        AssignmentNode initAssignment = new AssignmentNode(varName, initialNode);
-                        statementListStack.peek().add(initAssignment);
-                        System.out.println("Inicialización local: " + varName + " = " + initialNode);
-                    }
+                    VarDeclStatementNode declStmt = new VarDeclStatementNode(varDeclNode);
+                    statementListStack.peek().add(declStmt);
+                    System.out.println("AST BUILDER: Agregada declaración LOCAL: " + varType + " " + varName);
+                    
+                    // VERIFICAR: ¿Hay otro código que agregue AssignmentNode?
                 }
             }
         }
+        System.out.println("=== FIN declaración ===");
     }
-
     @Override
     public void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         String returnType = ctx.typeSpecifier().getText();
@@ -118,6 +112,16 @@ public class AstBuilder extends MiniCBaseListener {
     public void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         List<StatementNode> bodyStatements = statementListStack.pop();
         BlockNode body = new BlockNode();
+        
+        System.out.println("AST BUILDER: Cuerpo de función tiene " + bodyStatements.size() + " statements:");
+        for (StatementNode stmt : bodyStatements) {
+            System.out.println(" - Statement: " + stmt.getClass().getSimpleName());
+            if (stmt instanceof VarDeclStatementNode) {
+                VarDeclStatementNode declStmt = (VarDeclStatementNode) stmt;
+                System.out.println("   - VarDecl: " + declStmt.getVarDeclNode().getType() + " " + declStmt.getVarDeclNode().getName());
+            }
+        }
+        
         for (StatementNode stmt : bodyStatements) {
             body.addStatement(stmt);
         }
