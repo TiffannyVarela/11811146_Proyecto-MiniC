@@ -18,7 +18,7 @@ public class BlockNode extends StatementNode {
         return statements;
     }
 
-    void addStatement(StatementNode statement) {
+    public void addStatement(StatementNode statement) {
         statements.add(statement);
     }
 

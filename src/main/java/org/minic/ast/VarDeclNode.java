@@ -5,12 +5,14 @@ public class VarDeclNode extends DeclarationNode {
     private String name;
     private boolean isArray;
     private int arraySize;
+    private ExpressionNode initialNode;
     
     public VarDeclNode(String type, String name) {
         super(name);        
         this.type = type;
         this.name = name;
         this.isArray = false;
+        this.initialNode = null;
     }
 
     public VarDeclNode(String type, String name, boolean isArray, int arraySize) {
@@ -19,6 +21,16 @@ public class VarDeclNode extends DeclarationNode {
         this.name = name;
         this.isArray = isArray;
         this.arraySize = arraySize;
+        this.initialNode = null;
+    }
+
+    public VarDeclNode(String type, String name, boolean isArray, int arraySize, ExpressionNode initialNode) {
+        super(name);        
+        this.type = type;
+        this.name = name;
+        this.isArray = isArray;
+        this.arraySize = arraySize;
+        this.initialNode = initialNode;
     }
 
     public String getType() {
@@ -35,6 +47,18 @@ public class VarDeclNode extends DeclarationNode {
 
     public int getArraySize() {
         return arraySize;
+    }
+
+    public ExpressionNode getInitialNode(){
+        return initialNode;
+    }
+
+    public void setInitialNode( ExpressionNode initialNode){
+        this.initialNode = initialNode;
+    }
+
+    public boolean hasInitialNode(){
+        return initialNode != null;
     }
 
     @Override

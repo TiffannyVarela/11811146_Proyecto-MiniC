@@ -1,6 +1,4 @@
-parser grammar MiniC;
-
-options {tokenVocab=MiniCLexer;}
+grammar MiniC;
 
 @header {
 package org.minic;
@@ -21,7 +19,10 @@ initDeclaratorList
 
 initDeclarator
     : Identifier (LBRACK IntegerConstant RBRACK)*
-    | STAR initDeclarator
+    | Identifier (LBRACK IntegerConstant RBRACK)* ASSIGN expression
+    | Identifier ASSIGN expression
+    | STAR Identifier
+    | STAR Identifier ASSIGN expression
     ;
 
 typeSpecifier
@@ -30,9 +31,6 @@ typeSpecifier
     | BOOL
     | VOID
     | STRING
-    | typeSpecifier LBRACK IntegerConstant RBRACK //1 dimencion
-    | typeSpecifier LBRACK IntegerConstant RBRACK LBRACK IntegerConstant RBRACK //2 dimenciones
-    | typeSpecifier STAR //Punteros
     ;
 
 functionDefinition
@@ -44,7 +42,7 @@ parameterList
     ;
 
 parameter
-    : typeSpecifier initDeclarator
+    : typeSpecifier Identifier
     ;
 
 compoundStatement
@@ -52,14 +50,14 @@ compoundStatement
     ;
 
 statement
-    :compoundStatement
-    |ifStatement
-    |whileStatement
-    |forStatement
-    |doWhileStatement
-    |assignmentStatement
-    |returnStatement
-    |expressionStatement
+    : compoundStatement
+    | ifStatement
+    | whileStatement
+    | forStatement
+    | doWhileStatement
+    | assignmentStatement
+    | returnStatement
+    | expressionStatement
     ;
 
 ifStatement
@@ -71,7 +69,16 @@ whileStatement
     ;
 
 forStatement
-    : FOR LPAREN expressionStatement expression? SEMI expression? RPAREN statement
+    : FOR LPAREN forInit? SEMI expression? SEMI forUpdate? RPAREN statement
+    ;
+
+forInit
+    : expressionStatement
+    | declaration
+    ;
+
+forUpdate
+    : expression
     ;
 
 doWhileStatement
@@ -90,8 +97,7 @@ expressionStatement
     : expression? SEMI
     ;
 
-// Expressions precedence climbing
-
+// Expressions
 expression
     : logicalOrExpression
     ;
@@ -121,8 +127,13 @@ multiplicativeExpression
     ;
 
 unaryExpression
-    : (NOT | MINUS | AMP| STAR) unaryExpression
-    | primaryExpression
+    : (NOT | MINUS | AMP | STAR) unaryExpression
+    | postfixExpression
+    ;
+
+postfixExpression
+    : primaryExpression
+    | callExpression
     ;
 
 primaryExpression
@@ -133,19 +144,76 @@ primaryExpression
     | FALSE
     | LPAREN expression RPAREN
     | lvalue
-    | callExpression
-    | Identifier
     ;
 
 callExpression
-    :Identifier LPAREN (expression (COMMA expression)*)? RPAREN
+    : Identifier LPAREN argumentList? RPAREN
+    ;
+
+argumentList
+    : expression (COMMA expression)*
     ;
 
 lvalue
-    : Identifier (LBRACK expression RBRACK)*
-    | Identifier
-    | lvalue LBRACK expression RBRACK
-    | lvalue LBRACK expression RBRACK LBRACK expression RBRACK
+    : Identifier
     | STAR expression
-    | AMP lvalue
+    | lvalue LBRACK expression RBRACK
     ;
+
+// Lexer rules
+
+// Palabras reservadas
+INT: 'int';
+CHAR: 'char';
+BOOL: 'bool';
+VOID: 'void';
+STRING: 'string';
+
+IF: 'if';
+ELSE: 'else';
+WHILE: 'while';
+FOR: 'for';
+DO: 'do';
+RETURN: 'return';
+TRUE: 'true';
+FALSE: 'false';
+
+// Símbolos
+SEMI: ';';
+COMMA: ',';
+ASSIGN: '=';
+
+LPAREN: '(';
+RPAREN: ')';
+LBRACE: '{';
+RBRACE: '}';
+LBRACK: '[';
+RBRACK: ']';
+
+PLUS: '+';
+MINUS: '-';
+STAR: '*';
+DIV: '/';
+MOD: '%';
+
+NOT:  '!';
+AND:  '&&';
+OR:   '||';
+EQ:   '==';
+NEQ:  '!=';
+LT:   '<';
+GT:   '>';
+LE:   '<=';
+GE:   '>=';
+AMP: '&';
+
+// Identificadores y literales
+Identifier: [a-zA-Z_][a-zA-Z0-9_]*;
+IntegerConstant: [0-9]+;
+CharConstant: '\'' . '\'';  // Carácter simple
+StringLiteral: '"' (~["\\\r\n] | '\\' ["\\nrt])* '"';
+
+// Espacios y comentarios
+Whitespace: [ \t\r\n]+ -> skip;
+LineComment: '//' ~[\r\n]* -> skip;
+BlockComment: '/*' .*? '*/' -> skip;

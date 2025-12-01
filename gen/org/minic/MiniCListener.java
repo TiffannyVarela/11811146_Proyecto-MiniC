@@ -6,287 +6,327 @@ import org.antlr.v4.runtime.tree.ParseTreeListener;
 
 /**
  * This interface defines a complete listener for a parse tree produced by
- * {@link MiniC}.
+ * {@link MiniCParser}.
  */
 public interface MiniCListener extends ParseTreeListener {
 	/**
-	 * Enter a parse tree produced by {@link MiniC#program}.
+	 * Enter a parse tree produced by {@link MiniCParser#program}.
 	 * @param ctx the parse tree
 	 */
-	void enterProgram(MiniC.ProgramContext ctx);
+	void enterProgram(MiniCParser.ProgramContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#program}.
+	 * Exit a parse tree produced by {@link MiniCParser#program}.
 	 * @param ctx the parse tree
 	 */
-	void exitProgram(MiniC.ProgramContext ctx);
+	void exitProgram(MiniCParser.ProgramContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#declaration}.
+	 * Enter a parse tree produced by {@link MiniCParser#declaration}.
 	 * @param ctx the parse tree
 	 */
-	void enterDeclaration(MiniC.DeclarationContext ctx);
+	void enterDeclaration(MiniCParser.DeclarationContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#declaration}.
+	 * Exit a parse tree produced by {@link MiniCParser#declaration}.
 	 * @param ctx the parse tree
 	 */
-	void exitDeclaration(MiniC.DeclarationContext ctx);
+	void exitDeclaration(MiniCParser.DeclarationContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#initDeclaratorList}.
+	 * Enter a parse tree produced by {@link MiniCParser#initDeclaratorList}.
 	 * @param ctx the parse tree
 	 */
-	void enterInitDeclaratorList(MiniC.InitDeclaratorListContext ctx);
+	void enterInitDeclaratorList(MiniCParser.InitDeclaratorListContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#initDeclaratorList}.
+	 * Exit a parse tree produced by {@link MiniCParser#initDeclaratorList}.
 	 * @param ctx the parse tree
 	 */
-	void exitInitDeclaratorList(MiniC.InitDeclaratorListContext ctx);
+	void exitInitDeclaratorList(MiniCParser.InitDeclaratorListContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#initDeclarator}.
+	 * Enter a parse tree produced by {@link MiniCParser#initDeclarator}.
 	 * @param ctx the parse tree
 	 */
-	void enterInitDeclarator(MiniC.InitDeclaratorContext ctx);
+	void enterInitDeclarator(MiniCParser.InitDeclaratorContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#initDeclarator}.
+	 * Exit a parse tree produced by {@link MiniCParser#initDeclarator}.
 	 * @param ctx the parse tree
 	 */
-	void exitInitDeclarator(MiniC.InitDeclaratorContext ctx);
+	void exitInitDeclarator(MiniCParser.InitDeclaratorContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#typeSpecifier}.
+	 * Enter a parse tree produced by {@link MiniCParser#typeSpecifier}.
 	 * @param ctx the parse tree
 	 */
-	void enterTypeSpecifier(MiniC.TypeSpecifierContext ctx);
+	void enterTypeSpecifier(MiniCParser.TypeSpecifierContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#typeSpecifier}.
+	 * Exit a parse tree produced by {@link MiniCParser#typeSpecifier}.
 	 * @param ctx the parse tree
 	 */
-	void exitTypeSpecifier(MiniC.TypeSpecifierContext ctx);
+	void exitTypeSpecifier(MiniCParser.TypeSpecifierContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#functionDefinition}.
+	 * Enter a parse tree produced by {@link MiniCParser#functionDefinition}.
 	 * @param ctx the parse tree
 	 */
-	void enterFunctionDefinition(MiniC.FunctionDefinitionContext ctx);
+	void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#functionDefinition}.
+	 * Exit a parse tree produced by {@link MiniCParser#functionDefinition}.
 	 * @param ctx the parse tree
 	 */
-	void exitFunctionDefinition(MiniC.FunctionDefinitionContext ctx);
+	void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#parameterList}.
+	 * Enter a parse tree produced by {@link MiniCParser#parameterList}.
 	 * @param ctx the parse tree
 	 */
-	void enterParameterList(MiniC.ParameterListContext ctx);
+	void enterParameterList(MiniCParser.ParameterListContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#parameterList}.
+	 * Exit a parse tree produced by {@link MiniCParser#parameterList}.
 	 * @param ctx the parse tree
 	 */
-	void exitParameterList(MiniC.ParameterListContext ctx);
+	void exitParameterList(MiniCParser.ParameterListContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#parameter}.
+	 * Enter a parse tree produced by {@link MiniCParser#parameter}.
 	 * @param ctx the parse tree
 	 */
-	void enterParameter(MiniC.ParameterContext ctx);
+	void enterParameter(MiniCParser.ParameterContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#parameter}.
+	 * Exit a parse tree produced by {@link MiniCParser#parameter}.
 	 * @param ctx the parse tree
 	 */
-	void exitParameter(MiniC.ParameterContext ctx);
+	void exitParameter(MiniCParser.ParameterContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#compoundStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#compoundStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterCompoundStatement(MiniC.CompoundStatementContext ctx);
+	void enterCompoundStatement(MiniCParser.CompoundStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#compoundStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#compoundStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitCompoundStatement(MiniC.CompoundStatementContext ctx);
+	void exitCompoundStatement(MiniCParser.CompoundStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#statement}.
+	 * Enter a parse tree produced by {@link MiniCParser#statement}.
 	 * @param ctx the parse tree
 	 */
-	void enterStatement(MiniC.StatementContext ctx);
+	void enterStatement(MiniCParser.StatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#statement}.
+	 * Exit a parse tree produced by {@link MiniCParser#statement}.
 	 * @param ctx the parse tree
 	 */
-	void exitStatement(MiniC.StatementContext ctx);
+	void exitStatement(MiniCParser.StatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#ifStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#ifStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterIfStatement(MiniC.IfStatementContext ctx);
+	void enterIfStatement(MiniCParser.IfStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#ifStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#ifStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitIfStatement(MiniC.IfStatementContext ctx);
+	void exitIfStatement(MiniCParser.IfStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#whileStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#whileStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterWhileStatement(MiniC.WhileStatementContext ctx);
+	void enterWhileStatement(MiniCParser.WhileStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#whileStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#whileStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitWhileStatement(MiniC.WhileStatementContext ctx);
+	void exitWhileStatement(MiniCParser.WhileStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#forStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#forStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterForStatement(MiniC.ForStatementContext ctx);
+	void enterForStatement(MiniCParser.ForStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#forStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#forStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitForStatement(MiniC.ForStatementContext ctx);
+	void exitForStatement(MiniCParser.ForStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#doWhileStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#forInit}.
 	 * @param ctx the parse tree
 	 */
-	void enterDoWhileStatement(MiniC.DoWhileStatementContext ctx);
+	void enterForInit(MiniCParser.ForInitContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#doWhileStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#forInit}.
 	 * @param ctx the parse tree
 	 */
-	void exitDoWhileStatement(MiniC.DoWhileStatementContext ctx);
+	void exitForInit(MiniCParser.ForInitContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#assignmentStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#forUpdate}.
 	 * @param ctx the parse tree
 	 */
-	void enterAssignmentStatement(MiniC.AssignmentStatementContext ctx);
+	void enterForUpdate(MiniCParser.ForUpdateContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#assignmentStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#forUpdate}.
 	 * @param ctx the parse tree
 	 */
-	void exitAssignmentStatement(MiniC.AssignmentStatementContext ctx);
+	void exitForUpdate(MiniCParser.ForUpdateContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#returnStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#doWhileStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterReturnStatement(MiniC.ReturnStatementContext ctx);
+	void enterDoWhileStatement(MiniCParser.DoWhileStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#returnStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#doWhileStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitReturnStatement(MiniC.ReturnStatementContext ctx);
+	void exitDoWhileStatement(MiniCParser.DoWhileStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#expressionStatement}.
+	 * Enter a parse tree produced by {@link MiniCParser#assignmentStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterExpressionStatement(MiniC.ExpressionStatementContext ctx);
+	void enterAssignmentStatement(MiniCParser.AssignmentStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#expressionStatement}.
+	 * Exit a parse tree produced by {@link MiniCParser#assignmentStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitExpressionStatement(MiniC.ExpressionStatementContext ctx);
+	void exitAssignmentStatement(MiniCParser.AssignmentStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#expression}.
+	 * Enter a parse tree produced by {@link MiniCParser#returnStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterExpression(MiniC.ExpressionContext ctx);
+	void enterReturnStatement(MiniCParser.ReturnStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#expression}.
+	 * Exit a parse tree produced by {@link MiniCParser#returnStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitExpression(MiniC.ExpressionContext ctx);
+	void exitReturnStatement(MiniCParser.ReturnStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#logicalOrExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#expressionStatement}.
 	 * @param ctx the parse tree
 	 */
-	void enterLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx);
+	void enterExpressionStatement(MiniCParser.ExpressionStatementContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#logicalOrExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#expressionStatement}.
 	 * @param ctx the parse tree
 	 */
-	void exitLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx);
+	void exitExpressionStatement(MiniCParser.ExpressionStatementContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#logicalAndExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#expression}.
 	 * @param ctx the parse tree
 	 */
-	void enterLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx);
+	void enterExpression(MiniCParser.ExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#logicalAndExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#expression}.
 	 * @param ctx the parse tree
 	 */
-	void exitLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx);
+	void exitExpression(MiniCParser.ExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#equalityExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#logicalOrExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterEqualityExpression(MiniC.EqualityExpressionContext ctx);
+	void enterLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#equalityExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#logicalOrExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitEqualityExpression(MiniC.EqualityExpressionContext ctx);
+	void exitLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#relationalExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#logicalAndExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterRelationalExpression(MiniC.RelationalExpressionContext ctx);
+	void enterLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#relationalExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#logicalAndExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitRelationalExpression(MiniC.RelationalExpressionContext ctx);
+	void exitLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#additiveExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#equalityExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterAdditiveExpression(MiniC.AdditiveExpressionContext ctx);
+	void enterEqualityExpression(MiniCParser.EqualityExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#additiveExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#equalityExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitAdditiveExpression(MiniC.AdditiveExpressionContext ctx);
+	void exitEqualityExpression(MiniCParser.EqualityExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#multiplicativeExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#relationalExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx);
+	void enterRelationalExpression(MiniCParser.RelationalExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#multiplicativeExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#relationalExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx);
+	void exitRelationalExpression(MiniCParser.RelationalExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#unaryExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#additiveExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterUnaryExpression(MiniC.UnaryExpressionContext ctx);
+	void enterAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#unaryExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#additiveExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitUnaryExpression(MiniC.UnaryExpressionContext ctx);
+	void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#primaryExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#multiplicativeExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterPrimaryExpression(MiniC.PrimaryExpressionContext ctx);
+	void enterMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#primaryExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#multiplicativeExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitPrimaryExpression(MiniC.PrimaryExpressionContext ctx);
+	void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#callExpression}.
+	 * Enter a parse tree produced by {@link MiniCParser#unaryExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterCallExpression(MiniC.CallExpressionContext ctx);
+	void enterUnaryExpression(MiniCParser.UnaryExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#callExpression}.
+	 * Exit a parse tree produced by {@link MiniCParser#unaryExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitCallExpression(MiniC.CallExpressionContext ctx);
+	void exitUnaryExpression(MiniCParser.UnaryExpressionContext ctx);
 	/**
-	 * Enter a parse tree produced by {@link MiniC#lvalue}.
+	 * Enter a parse tree produced by {@link MiniCParser#postfixExpression}.
 	 * @param ctx the parse tree
 	 */
-	void enterLvalue(MiniC.LvalueContext ctx);
+	void enterPostfixExpression(MiniCParser.PostfixExpressionContext ctx);
 	/**
-	 * Exit a parse tree produced by {@link MiniC#lvalue}.
+	 * Exit a parse tree produced by {@link MiniCParser#postfixExpression}.
 	 * @param ctx the parse tree
 	 */
-	void exitLvalue(MiniC.LvalueContext ctx);
+	void exitPostfixExpression(MiniCParser.PostfixExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link MiniCParser#primaryExpression}.
+	 * @param ctx the parse tree
+	 */
+	void enterPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#primaryExpression}.
+	 * @param ctx the parse tree
+	 */
+	void exitPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link MiniCParser#callExpression}.
+	 * @param ctx the parse tree
+	 */
+	void enterCallExpression(MiniCParser.CallExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#callExpression}.
+	 * @param ctx the parse tree
+	 */
+	void exitCallExpression(MiniCParser.CallExpressionContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link MiniCParser#argumentList}.
+	 * @param ctx the parse tree
+	 */
+	void enterArgumentList(MiniCParser.ArgumentListContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#argumentList}.
+	 * @param ctx the parse tree
+	 */
+	void exitArgumentList(MiniCParser.ArgumentListContext ctx);
+	/**
+	 * Enter a parse tree produced by {@link MiniCParser#lvalue}.
+	 * @param ctx the parse tree
+	 */
+	void enterLvalue(MiniCParser.LvalueContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#lvalue}.
+	 * @param ctx the parse tree
+	 */
+	void exitLvalue(MiniCParser.LvalueContext ctx);
 }

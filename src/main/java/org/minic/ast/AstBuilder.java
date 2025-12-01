@@ -2,7 +2,7 @@ package org.minic.ast;
 
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.minic.MiniCBaseListener;
-import org.minic.MiniC;
+import org.minic.MiniCParser;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -20,60 +20,102 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterProgram(MiniC.ProgramContext ctx) {
+    public void enterProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = new ProgramNode();
         //root = programNode;
         nodeStack.push(programNode);
     }
 
     @Override
-    public void exitProgram(MiniC.ProgramContext ctx) {
+    public void exitProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = (ProgramNode) nodeStack.pop();
         root = programNode;
     }
 
     @Override
-    public void enterDeclaration(MiniC.DeclarationContext ctx) {
+    public void enterDeclaration(MiniCParser.DeclarationContext ctx) {
         String varType = ctx.typeSpecifier().getText();
 
-        for (MiniC.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
+        for (MiniCParser.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
             String varName = initDeclCtx.Identifier().getText();
             boolean isArray = initDeclCtx.LBRACK() != null && !initDeclCtx.LBRACK().isEmpty();
             int arraySize = 0;
+            ExpressionNode initialNode = null;
 
             if (isArray && initDeclCtx.IntegerConstant() != null && !initDeclCtx.IntegerConstant().isEmpty()) {
                 arraySize = Integer.parseInt(initDeclCtx.IntegerConstant(0).getText());
             }
 
-            VarDeclNode varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize);
-            ProgramNode programNode = (ProgramNode) nodeStack.peek();
-            programNode.addDeclarationNode(varDeclNode);
+            // Verificar inicialización solo si los métodos existen
+            try {
+                if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
+                    initialNode = buildExpression(initDeclCtx.expression());
+                }
+            } catch (Exception e) {
+                // Si los métodos no existen, ignorar inicialización
+                System.out.println("Advertencia: Inicialización no soportada en esta versión del parser");
+            }
 
+            VarDeclNode varDeclNode;
+            if (initialNode != null) {
+                varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize, initialNode);
+            } else {
+                varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize);
+            }
+
+            // CORRECCIÓN: Verificar qué tipo de nodo está en el tope de la pila
+            AstNode currentNode = nodeStack.peek();
+            
+            if (currentNode instanceof ProgramNode) {
+                // Declaración global - agregar al ProgramNode
+                ProgramNode programNode = (ProgramNode) currentNode;
+                programNode.addDeclarationNode(varDeclNode);
+            } else if (currentNode instanceof FunctionNode) {
+                // Declaración local dentro de función - agregar al bloque actual
+                // No agregar al FunctionNode directamente, se maneja en el statement list
+                if (!statementListStack.isEmpty()) {
+                    // Crear una declaración como statement
+                    // Necesitarías crear un nuevo tipo de nodo o usar AssignmentNode
+                    if (initialNode != null) {
+                        AssignmentNode initAssignment = new AssignmentNode(varName, initialNode);
+                        statementListStack.peek().add(initAssignment);
+                        System.out.println("Inicialización local: " + varName + " = " + initialNode);
+                    }
+                }
+            }
         }
     }
 
     @Override
-    public void enterFunctionDefinition(MiniC.FunctionDefinitionContext ctx) {
+    public void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         String returnType = ctx.typeSpecifier().getText();
         String functionName = ctx.Identifier().getText();
 
-        //Procesar parámetros
+        // Procesar parámetros
         List<VarDeclNode> parameters = new ArrayList<>();
         if (ctx.parameterList() != null) {
-            for( MiniC.ParameterContext paramCtx : ctx.parameterList().parameter()) {
+            for (MiniCParser.ParameterContext paramCtx : ctx.parameterList().parameter()) {
                 String paramType = paramCtx.typeSpecifier().getText();
-                String paramName = paramCtx.initDeclarator().Identifier().getText();
+                String paramName = paramCtx.Identifier().getText();
                 parameters.add(new VarDeclNode(paramType, paramName));
             }
         }
 
         FunctionNode functionNode = new FunctionNode(returnType, functionName, parameters, null);
+        
+        // AGREGAR AL PROGRAM NODE PRIMERO
+        if (!nodeStack.isEmpty() && nodeStack.peek() instanceof ProgramNode) {
+            ProgramNode programNode = (ProgramNode) nodeStack.peek();
+            programNode.addDeclarationNode(functionNode);
+        }
+        
+        // LUEGO PUSHEAR A LA PILA
         nodeStack.push(functionNode);
         statementListStack.push(new ArrayList<>());
     }
 
     @Override
-    public void exitFunctionDefinition(MiniC.FunctionDefinitionContext ctx) {
+    public void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         List<StatementNode> bodyStatements = statementListStack.pop();
         BlockNode body = new BlockNode();
         for (StatementNode stmt : bodyStatements) {
@@ -82,19 +124,15 @@ public class AstBuilder extends MiniCBaseListener {
 
         FunctionNode functionNode = (FunctionNode) nodeStack.pop();
         functionNode.setBody(body);
-        if (!nodeStack.isEmpty() && nodeStack.peek() instanceof ProgramNode) {
-            ProgramNode programNode = (ProgramNode) nodeStack.peek();
-            programNode.addDeclarationNode(functionNode);
-        }
     }
 
     @Override
-    public void enterCompoundStatement(MiniC.CompoundStatementContext ctx) {
+    public void enterCompoundStatement(MiniCParser.CompoundStatementContext ctx) {
         statementListStack.push(new ArrayList<>());
     }
 
     @Override
-    public void exitCompoundStatement(MiniC.CompoundStatementContext ctx) {
+    public void exitCompoundStatement(MiniCParser.CompoundStatementContext ctx) {
         List<StatementNode> statements = statementListStack.pop();
         BlockNode blockNode = new BlockNode();
         for (StatementNode stmt : statements) {
@@ -107,7 +145,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterIfStatement(MiniC.IfStatementContext ctx) {
+    public void enterIfStatement(MiniCParser.IfStatementContext ctx) {
         //Processar condición
         ExpressionNode condition = buildExpression(ctx.expression());
 
@@ -118,7 +156,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void exitIfStatement(MiniC.IfStatementContext ctx) {
+    public void exitIfStatement(MiniCParser.IfStatementContext ctx) {
         List<StatementNode> thenStatements = statementListStack.pop();
         IfNode ifNode = (IfNode) nodeStack.pop();
 
@@ -151,7 +189,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterDoWhileStatement(MiniC.DoWhileStatementContext ctx){
+    public void enterDoWhileStatement(MiniCParser.DoWhileStatementContext ctx){
         DoWhileNode doWhileNode = new DoWhileNode(null, null);
         statementListStack.peek().add(doWhileNode);
         nodeStack.push(doWhileNode);
@@ -159,7 +197,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void exitDoWhileStatement(MiniC.DoWhileStatementContext ctx){
+    public void exitDoWhileStatement(MiniCParser.DoWhileStatementContext ctx){
         List<StatementNode> bodyStatements = statementListStack.pop();
         nodeStack.pop();
 
@@ -173,14 +211,16 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterForStatement(MiniC.ForStatementContext ctx){
+    public void enterForStatement(MiniCParser.ForStatementContext ctx){
         StatementNode iniNode = null;
-        if (ctx.expressionStatement() !=null && ctx.expressionStatement().expression() != null) {
-            iniNode = new ExpressionStatementNode(buildExpression(ctx.expressionStatement().expression()));
+        if (ctx.forInit().expressionStatement() !=null && ctx.forInit().expressionStatement().expression() != null) {
+            iniNode = new ExpressionStatementNode(buildExpression(ctx.forInit().expressionStatement().expression()));
+        } else if (ctx.forInit().declaration() != null) {
+            //Manejo de forInit de ser necesario
         }
 
-        ExpressionNode condition = ctx.expression(0) != null ? buildExpression(ctx.expression(0)) : null;
-        ExpressionNode increment = ctx.expression(1) != null ? buildExpression(ctx.expression(1)) : null;
+        ExpressionNode condition = ctx.expression() != null ? buildExpression(ctx.expression()) : null;
+        ExpressionNode increment = ctx.forUpdate() != null ? buildExpression(ctx.forUpdate().expression()) : null;
 
         ForNode forNode = new ForNode(iniNode, condition, increment, null);
         statementListStack.peek().add(forNode);
@@ -189,7 +229,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void exitForStatement(MiniC.ForStatementContext ctx){
+    public void exitForStatement(MiniCParser.ForStatementContext ctx){
         List<StatementNode> bodyStatementNodes = statementListStack.pop();
         ForNode forNode = (ForNode) nodeStack.pop();
 
@@ -202,7 +242,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterAssignmentStatement(MiniC.AssignmentStatementContext ctx) {
+    public void enterAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) {
         String varName = ctx.lvalue().Identifier().getText();
         ExpressionNode value = buildExpression(ctx.expression());
         AssignmentNode assignmentNode = new AssignmentNode(varName, value);
@@ -213,7 +253,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterExpressionStatement(MiniC.ExpressionStatementContext ctx){
+    public void enterExpressionStatement(MiniCParser.ExpressionStatementContext ctx){
         if (ctx.expression() != null) {
             ExpressionNode expressionNode = buildExpression(ctx.expression());
             ExpressionStatementNode expressionStatementNode = new ExpressionStatementNode(expressionNode);
@@ -224,7 +264,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void enterReturnStatement(MiniC.ReturnStatementContext ctx) {
+    public void enterReturnStatement(MiniCParser.ReturnStatementContext ctx) {
         ExpressionNode returnValue = ctx.expression() != null ? buildExpression(ctx.expression()) : null;
         ReturnNode returnNode = new ReturnNode(returnValue);
         if (!statementListStack.isEmpty()) {
@@ -233,7 +273,7 @@ public class AstBuilder extends MiniCBaseListener {
         System.out.println("Return: "+returnValue);
     }
 
-    private ExpressionNode buildExpression(MiniC.ExpressionContext ctx) {
+    private ExpressionNode buildExpression(MiniCParser.ExpressionContext ctx) {
         if (ctx == null) {
             return null;
         }
@@ -246,7 +286,7 @@ public class AstBuilder extends MiniCBaseListener {
         return buildLogicalOrExpression(ctx.logicalOrExpression());
     }
 
-    private ExpressionNode buildPrimaryExpression(MiniC.PrimaryExpressionContext ctx) {
+    private ExpressionNode buildPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx) {
         //Integer
         if (ctx.IntegerConstant() != null) {
             return new NumberNode(ctx.IntegerConstant().getText());
@@ -276,18 +316,6 @@ public class AstBuilder extends MiniCBaseListener {
             return new VariableNode(varName);
         }
 
-        //CallExpression
-        if (ctx.callExpression() != null) {
-            String functionName = ctx.callExpression().Identifier().getText();
-            List<ExpressionNode> arguments = new ArrayList<>();
-            if (ctx.callExpression().expression() != null){
-                for (MiniC.ExpressionContext argCtx : ctx.callExpression().expression()) {
-                    arguments.add(buildExpression(argCtx));
-                }
-            }
-        return new FunctionCallNode(functionName, arguments);
-        }
-
         //Parenthesized Expression
         if (ctx.LPAREN() != null && ctx.expression() != null){
             return buildExpression(ctx.expression());
@@ -295,7 +323,18 @@ public class AstBuilder extends MiniCBaseListener {
         return null;
     }
 
-    private ExpressionNode buildLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx) {
+    private ExpressionNode buildCallExpression(MiniCParser.CallExpressionContext ctx){
+        String functionName = ctx.Identifier().getText();
+            List<ExpressionNode> arguments = new ArrayList<>();
+            if (ctx.argumentList() != null){
+                for (MiniCParser.ExpressionContext argCtx : ctx.argumentList().expression()) {
+                    arguments.add(buildExpression(argCtx));
+                }
+            }
+        return new FunctionCallNode(functionName, arguments);
+    }
+
+    private ExpressionNode buildLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) {
         if (ctx.logicalAndExpression().size() == 1) {
             return buildLogicalAndExpression(ctx.logicalAndExpression(0));
         }
@@ -309,7 +348,7 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx) {
+    private ExpressionNode buildLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) {
         if (ctx.equalityExpression().size() == 1) {
             return buildEqualityExpression(ctx.equalityExpression(0));
         }
@@ -321,7 +360,7 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildEqualityExpression(MiniC.EqualityExpressionContext ctx) {
+    private ExpressionNode buildEqualityExpression(MiniCParser.EqualityExpressionContext ctx) {
         if (ctx.relationalExpression().size() == 1) {
             return buildRelationalExpression(ctx.relationalExpression(0));
         }
@@ -335,7 +374,7 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildRelationalExpression(MiniC.RelationalExpressionContext ctx) {
+    private ExpressionNode buildRelationalExpression(MiniCParser.RelationalExpressionContext ctx) {
         if (ctx.additiveExpression().size() == 1) {
             return buildAdditiveExpression(ctx.additiveExpression(0));
         }
@@ -350,7 +389,7 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildAdditiveExpression(MiniC.AdditiveExpressionContext ctx){
+    private ExpressionNode buildAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx){
         if (ctx.multiplicativeExpression().size() == 1) {
             return buildMultiplicativeExpression(ctx.multiplicativeExpression(0));
         }
@@ -365,7 +404,7 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx){
+    private ExpressionNode buildMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx){
         if (ctx.unaryExpression().size() == 1) {
             return buildUnaryExpression(ctx.unaryExpression(0));
         }
@@ -380,10 +419,10 @@ public class AstBuilder extends MiniCBaseListener {
         return left;
     }
 
-    private ExpressionNode buildUnaryExpression(MiniC.UnaryExpressionContext ctx){
+    private ExpressionNode buildUnaryExpression(MiniCParser.UnaryExpressionContext ctx){
         //Expresion primaria, sin operador unario
-        if (ctx.primaryExpression() != null) {
-            return buildPrimaryExpression(ctx.primaryExpression());
+        if (ctx.postfixExpression() != null) {
+            return buildPostFixExpression(ctx.postfixExpression());
         }
 
         //Manejar !,-,&,*
@@ -392,8 +431,18 @@ public class AstBuilder extends MiniCBaseListener {
         return new UnaryOpNode(operator, operand);
     }
 
+    private ExpressionNode buildPostFixExpression(MiniCParser.PostfixExpressionContext ctx){
+        if (ctx.primaryExpression() != null) {
+            return buildPrimaryExpression(ctx.primaryExpression());
+        }
+        if (ctx.callExpression() != null) {
+            return buildCallExpression(ctx.callExpression());
+        }
+        return null;
+    }
+
     @Override
-    public void enterWhileStatement(MiniC.WhileStatementContext ctx){
+    public void enterWhileStatement(MiniCParser.WhileStatementContext ctx){
         ExpressionNode condition = buildExpression(ctx.expression());
         WhileNode whileNode = new WhileNode(condition, null);
         statementListStack.peek().add(whileNode);
@@ -402,7 +451,7 @@ public class AstBuilder extends MiniCBaseListener {
     }
 
     @Override
-    public void exitWhileStatement(MiniC.WhileStatementContext ctx){
+    public void exitWhileStatement(MiniCParser.WhileStatementContext ctx){
         List<StatementNode> bodyStatements = statementListStack.pop();
         WhileNode whileNode = (WhileNode) nodeStack.pop();
 

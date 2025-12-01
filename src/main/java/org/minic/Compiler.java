@@ -2,29 +2,53 @@ package org.minic;
 
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.List;
 
 import org.minic.ast.*;
 import org.minic.backend.mips.MipsGenerator;
+import org.minic.ir.IrGenerator;
+import org.minic.optimizer.ConstantFolder;
 import org.minic.semantic.SemanticChecker;
 
 public class Compiler {
-    public static void compile(AstNode ast, String sourceFile) {
+    // En Compiler.java, modifica el método compile:
+public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boolean optimize, String outputFile) {
        try {
             System.out.println("\n--- Análisis Semántico ---");
             SemanticChecker semanticChecker = new SemanticChecker();
             semanticChecker.check(ast);
             System.out.println("Análisis semántico completado sin errores");
 
+            // OPTIMIZACIÓN (si está habilitada)
+            AstNode processedAst = ast;
+            if (optimize) {
+                System.out.println("\n--- Optimización ---");
+                processedAst = ConstantFolder.optimize(ast);
+                System.out.println("Optimización de constantes completada");
+            }
+
+            // GENERACIÓN DE IR (si está habilitada)
+            if (dumpIr) {
+                System.out.println("\n--- Generación de Código Intermedio ---");
+                IrGenerator irGenerator = new IrGenerator();
+                List<String> irCode = irGenerator.generate(processedAst);
+                
+                String irFilePath = sourceFile.replace(".mc", ".ir");
+                writeIrToFile(irCode, irFilePath);
+                System.out.println("Código IR generado en: " + irFilePath);
+            }
+
             System.out.println("\n--- Generación de Código MIPS ---");
             MipsGenerator mipsGenerator = new MipsGenerator();
-            String mipsCode = mipsGenerator.generate(ast);
+            String mipsCode = mipsGenerator.generate(processedAst);
             
-            String outputFilePath = sourceFile.replace(".mc", ".s");
+            // Usar archivo de salida personalizado si se especificó
+            String outputFilePath = outputFile != null ? outputFile : sourceFile.replace(".mc", ".s");
             writeToFile(mipsCode, outputFilePath);
             System.out.println("Código MIPS generado en: " + outputFilePath);
             
             // Mostrar información del AST
-            printAstInfo(ast);
+            printAstInfo(processedAst);
             
        } catch (CompilationException e) {
            throw e;
@@ -33,6 +57,10 @@ public class Compiler {
        }
     }
 
+    // === MÉTODO ORIGINAL (para compatibilidad) ===
+    public static void compile(AstNode ast, String sourceFile) {
+        compile(ast, sourceFile, false, false, null);
+    }
     private static void printAstInfo(AstNode ast) {
         if (ast instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) ast;
@@ -79,6 +107,22 @@ public class Compiler {
             
         } catch (Exception e) {
             throw new RuntimeException("Error al escribir el archivo: " + filePath + ": " + e.getMessage());
+        }
+    }
+
+    // === AGREGAR ESTE NUEVO MÉTODO PARA GUARDAR CÓDIGO IR ===
+    private static void writeIrToFile(List<String> irCode, String filePath) {
+        try {
+            String content = String.join("\n", irCode);
+            Files.write(Paths.get(filePath), content.getBytes());
+            System.out.println("Archivo IR guardado: " + filePath);
+            
+            // Mostrar tamaño del archivo IR generado
+            long fileSize = Files.size(Paths.get(filePath));
+            System.out.println("Tamaño del archivo IR: " + fileSize + " bytes");
+            
+        } catch (Exception e) {
+            throw new RuntimeException("Error al escribir el archivo IR: " + filePath + ": " + e.getMessage());
         }
     }
 }

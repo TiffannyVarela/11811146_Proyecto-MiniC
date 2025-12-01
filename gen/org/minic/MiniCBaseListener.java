@@ -19,337 +19,385 @@ public class MiniCBaseListener implements MiniCListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterProgram(MiniC.ProgramContext ctx) { }
+	@Override public void enterProgram(MiniCParser.ProgramContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitProgram(MiniC.ProgramContext ctx) { }
+	@Override public void exitProgram(MiniCParser.ProgramContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterDeclaration(MiniC.DeclarationContext ctx) { }
+	@Override public void enterDeclaration(MiniCParser.DeclarationContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitDeclaration(MiniC.DeclarationContext ctx) { }
+	@Override public void exitDeclaration(MiniCParser.DeclarationContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterInitDeclaratorList(MiniC.InitDeclaratorListContext ctx) { }
+	@Override public void enterInitDeclaratorList(MiniCParser.InitDeclaratorListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitInitDeclaratorList(MiniC.InitDeclaratorListContext ctx) { }
+	@Override public void exitInitDeclaratorList(MiniCParser.InitDeclaratorListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterInitDeclarator(MiniC.InitDeclaratorContext ctx) { }
+	@Override public void enterInitDeclarator(MiniCParser.InitDeclaratorContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitInitDeclarator(MiniC.InitDeclaratorContext ctx) { }
+	@Override public void exitInitDeclarator(MiniCParser.InitDeclaratorContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterTypeSpecifier(MiniC.TypeSpecifierContext ctx) { }
+	@Override public void enterTypeSpecifier(MiniCParser.TypeSpecifierContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitTypeSpecifier(MiniC.TypeSpecifierContext ctx) { }
+	@Override public void exitTypeSpecifier(MiniCParser.TypeSpecifierContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterFunctionDefinition(MiniC.FunctionDefinitionContext ctx) { }
+	@Override public void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitFunctionDefinition(MiniC.FunctionDefinitionContext ctx) { }
+	@Override public void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterParameterList(MiniC.ParameterListContext ctx) { }
+	@Override public void enterParameterList(MiniCParser.ParameterListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitParameterList(MiniC.ParameterListContext ctx) { }
+	@Override public void exitParameterList(MiniCParser.ParameterListContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterParameter(MiniC.ParameterContext ctx) { }
+	@Override public void enterParameter(MiniCParser.ParameterContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitParameter(MiniC.ParameterContext ctx) { }
+	@Override public void exitParameter(MiniCParser.ParameterContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCompoundStatement(MiniC.CompoundStatementContext ctx) { }
+	@Override public void enterCompoundStatement(MiniCParser.CompoundStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCompoundStatement(MiniC.CompoundStatementContext ctx) { }
+	@Override public void exitCompoundStatement(MiniCParser.CompoundStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterStatement(MiniC.StatementContext ctx) { }
+	@Override public void enterStatement(MiniCParser.StatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitStatement(MiniC.StatementContext ctx) { }
+	@Override public void exitStatement(MiniCParser.StatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterIfStatement(MiniC.IfStatementContext ctx) { }
+	@Override public void enterIfStatement(MiniCParser.IfStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitIfStatement(MiniC.IfStatementContext ctx) { }
+	@Override public void exitIfStatement(MiniCParser.IfStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterWhileStatement(MiniC.WhileStatementContext ctx) { }
+	@Override public void enterWhileStatement(MiniCParser.WhileStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitWhileStatement(MiniC.WhileStatementContext ctx) { }
+	@Override public void exitWhileStatement(MiniCParser.WhileStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterForStatement(MiniC.ForStatementContext ctx) { }
+	@Override public void enterForStatement(MiniCParser.ForStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitForStatement(MiniC.ForStatementContext ctx) { }
+	@Override public void exitForStatement(MiniCParser.ForStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterDoWhileStatement(MiniC.DoWhileStatementContext ctx) { }
+	@Override public void enterForInit(MiniCParser.ForInitContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitDoWhileStatement(MiniC.DoWhileStatementContext ctx) { }
+	@Override public void exitForInit(MiniCParser.ForInitContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterAssignmentStatement(MiniC.AssignmentStatementContext ctx) { }
+	@Override public void enterForUpdate(MiniCParser.ForUpdateContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitAssignmentStatement(MiniC.AssignmentStatementContext ctx) { }
+	@Override public void exitForUpdate(MiniCParser.ForUpdateContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterReturnStatement(MiniC.ReturnStatementContext ctx) { }
+	@Override public void enterDoWhileStatement(MiniCParser.DoWhileStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitReturnStatement(MiniC.ReturnStatementContext ctx) { }
+	@Override public void exitDoWhileStatement(MiniCParser.DoWhileStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterExpressionStatement(MiniC.ExpressionStatementContext ctx) { }
+	@Override public void enterAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitExpressionStatement(MiniC.ExpressionStatementContext ctx) { }
+	@Override public void exitAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterExpression(MiniC.ExpressionContext ctx) { }
+	@Override public void enterReturnStatement(MiniCParser.ReturnStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitExpression(MiniC.ExpressionContext ctx) { }
+	@Override public void exitReturnStatement(MiniCParser.ReturnStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx) { }
+	@Override public void enterExpressionStatement(MiniCParser.ExpressionStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitLogicalOrExpression(MiniC.LogicalOrExpressionContext ctx) { }
+	@Override public void exitExpressionStatement(MiniCParser.ExpressionStatementContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx) { }
+	@Override public void enterExpression(MiniCParser.ExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitLogicalAndExpression(MiniC.LogicalAndExpressionContext ctx) { }
+	@Override public void exitExpression(MiniCParser.ExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterEqualityExpression(MiniC.EqualityExpressionContext ctx) { }
+	@Override public void enterLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitEqualityExpression(MiniC.EqualityExpressionContext ctx) { }
+	@Override public void exitLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterRelationalExpression(MiniC.RelationalExpressionContext ctx) { }
+	@Override public void enterLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitRelationalExpression(MiniC.RelationalExpressionContext ctx) { }
+	@Override public void exitLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterAdditiveExpression(MiniC.AdditiveExpressionContext ctx) { }
+	@Override public void enterEqualityExpression(MiniCParser.EqualityExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitAdditiveExpression(MiniC.AdditiveExpressionContext ctx) { }
+	@Override public void exitEqualityExpression(MiniCParser.EqualityExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx) { }
+	@Override public void enterRelationalExpression(MiniCParser.RelationalExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitMultiplicativeExpression(MiniC.MultiplicativeExpressionContext ctx) { }
+	@Override public void exitRelationalExpression(MiniCParser.RelationalExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterUnaryExpression(MiniC.UnaryExpressionContext ctx) { }
+	@Override public void enterAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitUnaryExpression(MiniC.UnaryExpressionContext ctx) { }
+	@Override public void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterPrimaryExpression(MiniC.PrimaryExpressionContext ctx) { }
+	@Override public void enterMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitPrimaryExpression(MiniC.PrimaryExpressionContext ctx) { }
+	@Override public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterCallExpression(MiniC.CallExpressionContext ctx) { }
+	@Override public void enterUnaryExpression(MiniCParser.UnaryExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitCallExpression(MiniC.CallExpressionContext ctx) { }
+	@Override public void exitUnaryExpression(MiniCParser.UnaryExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void enterLvalue(MiniC.LvalueContext ctx) { }
+	@Override public void enterPostfixExpression(MiniCParser.PostfixExpressionContext ctx) { }
 	/**
 	 * {@inheritDoc}
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
-	@Override public void exitLvalue(MiniC.LvalueContext ctx) { }
+	@Override public void exitPostfixExpression(MiniCParser.PostfixExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterCallExpression(MiniCParser.CallExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitCallExpression(MiniCParser.CallExpressionContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterArgumentList(MiniCParser.ArgumentListContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitArgumentList(MiniCParser.ArgumentListContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void enterLvalue(MiniCParser.LvalueContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitLvalue(MiniCParser.LvalueContext ctx) { }
 
 	/**
 	 * {@inheritDoc}
