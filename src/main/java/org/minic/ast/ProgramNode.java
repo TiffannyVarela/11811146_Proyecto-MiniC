@@ -11,6 +11,10 @@ public class ProgramNode extends AstNode {
         this.declarationsNodes = new ArrayList<>();
     }
 
+    public ProgramNode(List<AstNode> declarationsNodes) {
+        this.declarationsNodes = new ArrayList<>(declarationsNodes);
+    }
+
     public List<AstNode> getDeclarationsNodes() {
         return declarationsNodes;
     }

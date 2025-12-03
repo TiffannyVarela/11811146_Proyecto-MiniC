@@ -1,10 +1,14 @@
 package org.minic.ast;
 
-public class CharNode extends LiteralNode {
+public class CharNode extends ExpressionNode {
     private char value;
 
     public CharNode(String text) {
         this.value = extractCharValue(text);
+    }
+
+    public CharNode(char value) {
+        this.value = value;
     }
 
     private static char extractCharValue(String text) {
@@ -17,6 +21,10 @@ public class CharNode extends LiteralNode {
 
     public char getValue() {
         return value;
+    }
+
+    public CharNode cloneNode() {
+        return new CharNode(this.value);
     }
 
     @Override

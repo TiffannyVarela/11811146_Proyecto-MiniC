@@ -11,6 +11,10 @@ public class BooleanNode extends LiteralNode {
         return value;
     }
 
+    public BooleanNode cloneNode() {
+        return new BooleanNode(this.value);
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

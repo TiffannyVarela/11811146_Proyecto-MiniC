@@ -1,6 +1,4 @@
 package org.minic.ast;
-
-
 public interface AstVisitor<T> {
 
     //Nodos de programa

@@ -1,4 +1,5 @@
 package org.minic.ast;
+
 public abstract class AstNode {
     private int line;
     private int column;

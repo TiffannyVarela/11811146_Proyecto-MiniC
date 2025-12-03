@@ -19,6 +19,10 @@ public class StringNode extends LiteralNode {
         return value;
     }
 
+    public StringNode cloneNode() {
+        return new StringNode(this.value);
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

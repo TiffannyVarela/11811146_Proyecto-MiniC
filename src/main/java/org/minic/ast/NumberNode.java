@@ -15,6 +15,10 @@ public class NumberNode extends LiteralNode {
         return value;
     }
 
+    public NumberNode cloneNode() {
+        return new NumberNode(this.value);
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

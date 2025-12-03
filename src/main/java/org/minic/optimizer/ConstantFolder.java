@@ -66,10 +66,6 @@ public class ConstantFolder {
     
     private static StatementNode optimizeStatement(StatementNode stmt) {
         System.out.println("optimizeStatement INICIO: " + stmt.getClass().getSimpleName());
-        if (stmt == null) {
-            System.out.println("  ¡stmt es null!");
-            return null;
-        }
         
         if (stmt instanceof ExpressionStatementNode) {
             ExpressionStatementNode exprStmt = (ExpressionStatementNode) stmt;

@@ -17,6 +17,10 @@ public class UnaryOpNode extends ExpressionNode {
         return operand;
     }
 
+    public UnaryOpNode cloneNode() {
+        return new UnaryOpNode(this.operator, this.operand.cloneNode());
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

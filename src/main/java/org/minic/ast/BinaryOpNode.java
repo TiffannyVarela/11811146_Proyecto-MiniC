@@ -23,6 +23,10 @@ public class BinaryOpNode extends ExpressionNode {
         return right;
     }
 
+    public BinaryOpNode cloneNode() {
+        return new BinaryOpNode(this.operator, this.left.cloneNode(), this.right.cloneNode());
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

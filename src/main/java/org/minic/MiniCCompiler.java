@@ -9,65 +9,65 @@ import org.minic.ast.AstNode;
 
 public class MiniCCompiler {
     
-        public static void main(String[] args) {
-    if (args.length == 0) {
-        showHelp();
-        System.exit(1);
-    }
-
-    try {
-        boolean dumpIr = false;
-        boolean optimize = false;
-        String outputFile = null;
-        String inputFile = null;
-        
-        for (int i = 0; i < args.length; i++) {
-            if (args[i].equals("--help")) {
-                showHelp();
-                return;
-            }
-        }
-        
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "--dump-ir":
-                    dumpIr = true;
-                    break;
-                case "-O":
-                    optimize = true;
-                    break;
-                case "-o":
-                    if (i + 1 < args.length) {
-                        outputFile = args[++i];
-                    }
-                    break;
-                case "--test":
-                    if (i + 1 < args.length) {
-                        runTestSuite(args[++i]);
-                        return;
-                    }
-                    break;
-                default:
-                    if (!args[i].startsWith("-") && inputFile == null) {
-                        inputFile = args[i];
-                    }
-                    break;
-            }
-        }
-        
-        if (inputFile != null) {
-            compileTestFile(inputFile, dumpIr, optimize, outputFile);
-        } else {
-            System.err.println("Error: No se especificó archivo de entrada");
+    public static void main(String[] args) {
+        if (args.length == 0) {
+            showHelp();
             System.exit(1);
         }
-        
-    } catch (Exception e) {
-        System.err.println("Error durante la compilación: " + e.getMessage());
-        e.printStackTrace();
-        System.exit(1);
+
+        try {
+            boolean dumpIr = false;
+            boolean optimize = false;
+            String outputFile = null;
+            String inputFile = null;
+            
+            for (int i = 0; i < args.length; i++) {
+                if (args[i].equals("--help")) {
+                    showHelp();
+                    return;
+                }
+            }
+            
+            for (int i = 0; i < args.length; i++) {
+                switch (args[i]) {
+                    case "--dump-ir":
+                        dumpIr = true;
+                        break;
+                    case "-O":
+                        optimize = true;
+                        break;
+                    case "-o":
+                        if (i + 1 < args.length) {
+                            outputFile = args[++i];
+                        }
+                        break;
+                    case "--test":
+                        if (i + 1 < args.length) {
+                            runTestSuite(args[++i]);
+                            return;
+                        }
+                        break;
+                    default:
+                        if (!args[i].startsWith("-") && inputFile == null) {
+                            inputFile = args[i];
+                        }
+                        break;
+                }
+            }
+            
+            if (inputFile != null) {
+                compileTestFile(inputFile, dumpIr, optimize, outputFile);
+            } else {
+                System.err.println("Error: No se especificó archivo de entrada");
+                System.exit(1);
+            }
+            
+        } catch (Exception e) {
+            System.err.println("Error durante la compilación: " + e.getMessage());
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
-}
 
     private static void showHelp() {
         System.out.println("Uso: minic <archivo.mc> [opciones]");
@@ -136,33 +136,48 @@ public class MiniCCompiler {
         System.out.println("Leyendo archivo: " + testFile);
         CharStream input = CharStreams.fromFileName(testFile);
 
-        System.out.println("Análisis léxico...");
-        MiniCLexer lexer = new MiniCLexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
+        try {
+            ErrorManager.cleanErrors();
+            
+            System.out.println("Análisis léxico...");
+            MiniCLexer lexer = new MiniCLexer(input);
+            CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-        System.out.println("Análisis sintáctico...");
-        MiniCParser parser = new MiniCParser(tokens);
+            System.out.println("Análisis sintáctico...");
+            MiniCParser parser = new MiniCParser(tokens);
 
-        parser.removeErrorListeners();
-        parser.addErrorListener(new BaseErrorListener() {
-            @Override
-            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, 
-                                  int line, int charPositionInLine, String msg, RecognitionException e) {
-                String errorMsg = String.format("Error de sintaxis en línea %d, posición %d: %s", 
-                                              line, charPositionInLine, msg);
-                throw new CompilationException(errorMsg, e);
+            parser.removeErrorListeners();
+            parser.addErrorListener(new BaseErrorListener() {
+                @Override
+                public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, 
+                                    int line, int charPositionInLine, String msg, RecognitionException e) {
+                    ErrorManager.addError(line, charPositionInLine + 1, msg);
+                }
+            });
+
+            MiniCParser.ProgramContext tree = parser.program();
+            
+            if (ErrorManager.hasErrors()) {
+                ErrorManager.throwIfErrors();
             }
-        });
+            
+            System.out.println("Construyendo AST...");
+            AstBuilder astBuilder = new AstBuilder();
+            AstNode ast = astBuilder.build(tree);
 
-        MiniCParser.ProgramContext tree = parser.program();
-        
-        System.out.println("Construyendo AST...");
-        AstBuilder astBuilder = new AstBuilder();
-        AstNode ast = astBuilder.build(tree);
-
-        Compiler.compile(ast, testFile, dumpIr, optimize, outputFile);
-        
-        System.out.println("Proceso de compilación completado para: " + testFile);
+            Compiler.compile(ast, testFile, dumpIr, optimize, outputFile);
+            
+            System.out.println("Proceso de compilación completado para: " + testFile);
+            
+        } catch (CompilationException e) {
+            // Si no se mostraron errores aún, mostrarlos
+            if (!e.getMessage().contains("Línea")) {
+                ErrorManager.printErrors();
+            }
+            throw e;
+        } finally {
+            ErrorManager.cleanErrors();
+        }
     }
 
     public static void compileFromString(String sourceCode, String fileName) throws Exception {

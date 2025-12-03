@@ -16,6 +16,10 @@ public class VariableNode extends ExpressionNode {
         return visitor.visit(this);
     }
 
+    public VariableNode cloneNode() {
+        return new VariableNode(this.name);
+    }
+
     @Override
     public String toString() {
         return "VariableNode{" +

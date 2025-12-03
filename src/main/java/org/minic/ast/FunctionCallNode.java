@@ -1,5 +1,6 @@
 package org.minic.ast;
 
+import java.util.ArrayList;
 import java.util.List;
 public class FunctionCallNode extends ExpressionNode {
     private String functionName;
@@ -16,6 +17,15 @@ public class FunctionCallNode extends ExpressionNode {
 
     public List<ExpressionNode> getArguments() {
         return arguments;
+    }
+
+    @Override
+    public ExpressionNode cloneNode() {
+        List<ExpressionNode> clonedArgs = new ArrayList<>();
+        for (ExpressionNode arg : arguments) {
+            clonedArgs.add(arg.cloneNode());
+        }
+        return new FunctionCallNode(this.functionName, clonedArgs);
     }
 
     @Override

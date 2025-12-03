@@ -61,6 +61,15 @@ public class VarDeclNode extends DeclarationNode {
         return initialNode != null;
     }
 
+    public void setArray(boolean isArray) {
+        this.isArray = isArray;
+    }
+    
+    public void setArraySize(int arraySize) {
+        this.arraySize = arraySize;
+        this.isArray = true;
+    }
+
     @Override
     public <T> T accept(AstVisitor<T> visitor) {
         return visitor.visit(this);

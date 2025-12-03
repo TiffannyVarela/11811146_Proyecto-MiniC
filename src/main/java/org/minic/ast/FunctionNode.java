@@ -12,7 +12,6 @@ public class FunctionNode extends DeclarationNode {
         super(name);
         this.returnType = returnType;
         this.name = name;
-        //this.parameters = parameters != null ? parameters : new ArrayList<>();
         this.parameters = parameters;
         this.body = body;
     }

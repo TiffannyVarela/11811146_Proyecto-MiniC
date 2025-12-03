@@ -9,6 +9,17 @@ public class AssignmentNode extends StatementNode{
         this.value = value;
     }
 
+    public AssignmentNode(ExpressionNode target, ExpressionNode value) {
+        if (target instanceof VariableNode) {
+            this.variableName = ((VariableNode) target).getName();
+        } else if (target instanceof IdentifierNode) {
+            this.variableName = ((IdentifierNode) target).getName();
+        } else {
+            throw new IllegalArgumentException("Target must be a variable or identifier");
+        }
+        this.value = value;
+    }
+
     public String getVariableName() {
         return variableName;
     }
