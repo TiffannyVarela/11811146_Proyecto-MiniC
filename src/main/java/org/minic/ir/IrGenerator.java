@@ -93,35 +93,83 @@ public class IrGenerator {
     }
 
     private void generateBlock(BlockNode block) {
-        for (StatementNode stmt : block.getStatements()) {
+        System.out.println("IR GENERATOR: === INICIO generateBlock ===");
+        System.out.println("IR GENERATOR: Número de statements: " + block.getStatements().size());
+        
+        for (int i = 0; i < block.getStatements().size(); i++) {
+            StatementNode stmt = block.getStatements().get(i);
+            System.out.println("IR GENERATOR: Statement " + i + ": " + stmt.getClass().getSimpleName());
             generateStatement(stmt);
+        }
+        
+        System.out.println("IR GENERATOR: === FIN generateBlock ===");
+    }
+    
+    private void generateStatement(StatementNode stmt) {
+        System.out.println("IR GENERATOR: generateStatement called for: " + stmt.getClass().getSimpleName());
+        
+        if (stmt instanceof ExpressionStatementNode) {
+            System.out.println("IR GENERATOR: It's an ExpressionStatementNode");
+            generateExpressionStatement((ExpressionStatementNode) stmt);
+        } else if (stmt instanceof ReturnNode) {
+            System.out.println("IR GENERATOR: It's a ReturnNode");
+            generateReturnStatement((ReturnNode) stmt);
+        } else if (stmt instanceof BlockNode) {
+            System.out.println("IR GENERATOR: It's a BlockNode");
+            generateBlock((BlockNode) stmt);
+        } else if (stmt instanceof IfNode) {
+            System.out.println("IR GENERATOR: It's an IfNode");
+            generateIfStatement((IfNode) stmt);
+        } else if (stmt instanceof WhileNode) {
+            System.out.println("IR GENERATOR: It's a WhileNode");
+            generateWhileStatement((WhileNode) stmt);
+        } else if (stmt instanceof DoWhileNode) {
+            System.out.println("IR GENERATOR: It's a DoWhileNode");
+            generateDoWhileStatement((DoWhileNode) stmt);
+        } else if (stmt instanceof ForNode) {
+            System.out.println("IR GENERATOR: It's a ForNode");
+            generateForStatement((ForNode) stmt);
+        } else if (stmt instanceof AssignmentNode) {
+            System.out.println("IR GENERATOR: It's an AssignmentNode");
+            generateAssignment((AssignmentNode) stmt);
+        } else if (stmt instanceof VarDeclStatementNode) {
+            System.out.println("IR GENERATOR: FINALLY! It's a VarDeclStatementNode");
+            generateVarDeclStatement((VarDeclStatementNode) stmt);
+        } else {
+            System.out.println("IR GENERATOR: Unknown statement type: " + stmt.getClass().getSimpleName());
         }
     }
 
-    private void generateStatement(StatementNode stmt) {
-        if (stmt instanceof ExpressionStatementNode) {
-            generateExpressionStatement((ExpressionStatementNode) stmt);
-        } else if (stmt instanceof ReturnNode) {
-            generateReturnStatement((ReturnNode) stmt);
-        } else if (stmt instanceof BlockNode) {
-            generateBlock((BlockNode) stmt);
-        } else if (stmt instanceof IfNode) {
-            generateIfStatement((IfNode) stmt);
-        } else if (stmt instanceof WhileNode) {
-            generateWhileStatement((WhileNode) stmt);
-        } else if (stmt instanceof DoWhileNode) {
-            generateDoWhileStatement((DoWhileNode) stmt);
-        } else if (stmt instanceof ForNode) {
-            generateForStatement((ForNode) stmt);
-        } else if (stmt instanceof AssignmentNode) {
-            generateAssignment((AssignmentNode) stmt);
+    private void generateVarDeclStatement(VarDeclStatementNode varDeclStmt) {
+        System.out.println("IR GENERATOR: === Procesando VarDeclStatementNode ===");
+        System.out.println("IR GENERATOR: Nombre: " + varDeclStmt.getVarDeclNode().getName());
+        System.out.println("IR GENERATOR: Tiene inicialización: " + varDeclStmt.getVarDeclNode().hasInitialNode());
+        
+        VarDeclNode varDecl = varDeclStmt.getVarDeclNode();
+        String varName = varDecl.getName();
+        String type = varDecl.getType();
+        
+        // Generar declaración local
+        if (varDecl.isArray()) {
+            irCode.add("LOCAL " + varName + ": array[" + type + ", " + varDecl.getArraySize() + "]");
+        } else {
+            irCode.add("LOCAL " + varName + ": " + type);
         }
+        
+        if (varDecl.hasInitialNode()) {
+            System.out.println("IR GENERATOR: Generando inicialización para " + varName);
+            String initValue = generateExpression(varDecl.getInitialNode());
+            irCode.add(varName + " = " + initValue);
+            freeTemp(initValue);
+        } else {
+            System.out.println("IR GENERATOR: " + varName + " NO tiene inicialización");
+        }
+        System.out.println("IR GENERATOR: === Fin VarDeclStatementNode ===");
     }
 
     private void generateExpressionStatement(ExpressionStatementNode exprStmt) {
         if (exprStmt.getExpressionNode() != null) {
             String temp = generateExpression(exprStmt.getExpressionNode());
-            // No hacemos nada con el resultado de expresiones sueltas
             freeTemp(temp);
         }
     }
@@ -227,8 +275,6 @@ public class IrGenerator {
         
         freeTemp(value);
     }
-
-    // ========== GENERACIÓN DE EXPRESIONES ==========
 
     private String generateExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
@@ -357,8 +403,6 @@ public class IrGenerator {
         return temp;
     }
 
-    // ========== MÉTODOS AUXILIARES ==========
-
     private String newTemp() {
         String temp = "t" + tempCount++;
         tempMap.put(temp, "int"); // Asumimos tipo int por defecto
@@ -366,8 +410,7 @@ public class IrGenerator {
     }
 
     private void freeTemp(String temp) {
-        // En esta implementación simple, no liberamos temporales
-        // En una implementación más avanzada, podrías reutilizarlos
+
     }
 
     private String newLabel() {

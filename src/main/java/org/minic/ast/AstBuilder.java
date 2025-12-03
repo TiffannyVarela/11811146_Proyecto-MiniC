@@ -8,85 +8,139 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
+/*Recorre el arbol generado por ANTLR y construir el AST correspondiente */
+
 public class AstBuilder extends MiniCBaseListener {
+    //Nodo raiz del AST
     private AstNode root;
+    //Pila para manejar los nodos con sub-estructuras (funciones, if, loops, etc)
     private Stack<AstNode> nodeStack = new Stack<>();
+    //Pilas que mantienen las listas de statement segun el nivel del bloque
     private Stack<List<StatementNode>> statementListStack = new Stack<>();
 
+    //Construye el AST recorriendo el parse tree
     public AstNode build(org.antlr.v4.runtime.tree.ParseTree tree) {
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
         return root;
     }
 
+    //Inicia el programa, se crea ProgramNode y se coloca en la pila
     @Override
     public void enterProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = new ProgramNode();
-        //root = programNode;
         nodeStack.push(programNode);
     }
 
+    //Cuando el programa fiinaliza se extrae el nodo y se marca como root
     @Override
     public void exitProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = (ProgramNode) nodeStack.pop();
         root = programNode;
     }
 
+    //Maneja declaraciones globales y locales (variables simples, arreglos, inicializaciones)
     @Override
     public void enterDeclaration(MiniCParser.DeclarationContext ctx) {
-        String varType = ctx.typeSpecifier().getText();
         System.out.println("=== AST BUILDER: Procesando declaración ===");
+        
+        //Es una declaración de función (prototipo)
+        if (ctx.functionDeclaration() != null) {
+            handleFunctionDeclaration(ctx.functionDeclaration());
+            return;
+        }
+        
+        //Es una declaración de variable normal
+        handleVariableDeclaration(ctx);
+    }
 
+    private void handleFunctionDeclaration(MiniCParser.FunctionDeclarationContext funcDeclCtx) {
+        String returnType = funcDeclCtx.typeSpecifier().getText();
+        String funcName = funcDeclCtx.Identifier().getText();
+        
+        System.out.println("AST BUILDER: Prototipo de función: " + returnType + " " + funcName + "()");
+        
+        // Crear lista de parámetros (si los hay)
+        List<VarDeclNode> parameters = null;
+        if (funcDeclCtx.parameterList() != null) {
+            parameters = new ArrayList<>();
+            for (MiniCParser.ParameterContext paramCtx : funcDeclCtx.parameterList().parameter()) {
+                String paramType = paramCtx.typeSpecifier().getText();
+                String paramName = paramCtx.Identifier().getText();
+                parameters.add(new VarDeclNode(paramType, paramName, false, 0, null));
+            }
+        }
+        
+        // Crear nodo de función (sin cuerpo)
+        FunctionNode funcNode = new FunctionNode(returnType, funcName, parameters, null);
+        
+        // Agregar como declaración global al programa
+        AstNode currentNode = nodeStack.peek();
+        if (currentNode instanceof ProgramNode) {
+            ProgramNode programNode = (ProgramNode) currentNode;
+            programNode.addDeclarationNode(funcNode);
+            System.out.println("AST BUILDER: Agregado prototipo de función GLOBAL: " + returnType + " " + funcName);
+        }
+    }
+
+    private void handleVariableDeclaration(MiniCParser.DeclarationContext ctx) {
+        // Verificar que existe typeSpecifier
+        MiniCParser.TypeSpecifierContext typeCtx = ctx.typeSpecifier();
+        if (typeCtx == null) {
+            System.err.println("AST BUILDER: Error: typeSpecifier es null para declaración de variable");
+            return;
+        }
+        
+        String varType = typeCtx.getText();
+        System.out.println("AST BUILDER: Tipo: " + varType);
+        
+        // Procesar declaraciones múltiples en la misma línea
         for (MiniCParser.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
             String varName = initDeclCtx.Identifier().getText();
             boolean isArray = initDeclCtx.LBRACK() != null && !initDeclCtx.LBRACK().isEmpty();
             int arraySize = 0;
             ExpressionNode initialNode = null;
-
+            
+            // Tamaño del arreglo
             if (isArray && initDeclCtx.IntegerConstant() != null && !initDeclCtx.IntegerConstant().isEmpty()) {
                 arraySize = Integer.parseInt(initDeclCtx.IntegerConstant(0).getText());
             }
-
-            // Verificar inicialización
+            
+            // Inicialización si existe
             if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
                 initialNode = buildExpression(initDeclCtx.expression());
                 System.out.println("AST BUILDER: Tiene inicialización: " + varName + " = " + initialNode);
             }
 
-            // Crear nodo de declaración
+            // Crear el nodo de declaración
             VarDeclNode varDeclNode = new VarDeclNode(varType, varName, isArray, arraySize, initialNode);
-
             System.out.println("AST BUILDER: Creando declaración: " + varType + " " + varName);
-
-            // Manejar según el contexto
             AstNode currentNode = nodeStack.peek();
             
+            // Declaraciones globales
             if (currentNode instanceof ProgramNode) {
-                // Declaración global
                 ProgramNode programNode = (ProgramNode) currentNode;
                 programNode.addDeclarationNode(varDeclNode);
                 System.out.println("AST BUILDER: Agregada declaración GLOBAL: " + varName);
-                
+            // Declaraciones dentro de bloques o funciones    
             } else if (currentNode instanceof FunctionNode) {
-                // Declaración local
                 if (!statementListStack.isEmpty()) {
                     VarDeclStatementNode declStmt = new VarDeclStatementNode(varDeclNode);
                     statementListStack.peek().add(declStmt);
                     System.out.println("AST BUILDER: Agregada declaración LOCAL: " + varType + " " + varName);
-                    
-                    // VERIFICAR: ¿Hay otro código que agregue AssignmentNode?
                 }
             }
         }
         System.out.println("=== FIN declaración ===");
     }
+    
+    //Construye un FunctionNode juntos con su lista de parametros
     @Override
     public void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         String returnType = ctx.typeSpecifier().getText();
         String functionName = ctx.Identifier().getText();
-
-        // Procesar parámetros
         List<VarDeclNode> parameters = new ArrayList<>();
+        //Si existen parametros se procesan
         if (ctx.parameterList() != null) {
             for (MiniCParser.ParameterContext paramCtx : ctx.parameterList().parameter()) {
                 String paramType = paramCtx.typeSpecifier().getText();
@@ -94,20 +148,17 @@ public class AstBuilder extends MiniCBaseListener {
                 parameters.add(new VarDeclNode(paramType, paramName));
             }
         }
-
         FunctionNode functionNode = new FunctionNode(returnType, functionName, parameters, null);
-        
-        // AGREGAR AL PROGRAM NODE PRIMERO
+        //Agregar la funcion como declaracion global
         if (!nodeStack.isEmpty() && nodeStack.peek() instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) nodeStack.peek();
             programNode.addDeclarationNode(functionNode);
         }
-        
-        // LUEGO PUSHEAR A LA PILA
         nodeStack.push(functionNode);
         statementListStack.push(new ArrayList<>());
     }
 
+    //Al salir de la funcion se arma el BlockNode del cuerpo
     @Override
     public void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         List<StatementNode> bodyStatements = statementListStack.pop();
@@ -118,23 +169,29 @@ public class AstBuilder extends MiniCBaseListener {
             System.out.println(" - Statement: " + stmt.getClass().getSimpleName());
             if (stmt instanceof VarDeclStatementNode) {
                 VarDeclStatementNode declStmt = (VarDeclStatementNode) stmt;
-                System.out.println("   - VarDecl: " + declStmt.getVarDeclNode().getType() + " " + declStmt.getVarDeclNode().getName());
+                System.out.println("   - VarDecl: " + declStmt.getVarDeclNode().getType() + " " + 
+                                declStmt.getVarDeclNode().getName() + " = " + 
+                                (declStmt.getVarDeclNode().hasInitialNode() ? "Sí" : "No"));
             }
         }
         
         for (StatementNode stmt : bodyStatements) {
             body.addStatement(stmt);
+            System.out.println("AST BUILDER: Añadiendo statement al BlockNode: " + stmt.getClass().getSimpleName());
         }
-
+        
         FunctionNode functionNode = (FunctionNode) nodeStack.pop();
         functionNode.setBody(body);
+        System.out.println("AST BUILDER: BlockNode creado con " + body.getStatements().size() + " statements");
     }
 
+    //Nueva lista de statements para un bloque {}
     @Override
     public void enterCompoundStatement(MiniCParser.CompoundStatementContext ctx) {
         statementListStack.push(new ArrayList<>());
     }
 
+    //Combierte la lista de statements en un BlockNode y, si hay un bloque anterior existente, lo agrega
     @Override
     public void exitCompoundStatement(MiniCParser.CompoundStatementContext ctx) {
         List<StatementNode> statements = statementListStack.pop();
@@ -148,14 +205,14 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    //--------------------------Manejo de If-------------------------------
     @Override
     public void enterIfStatement(MiniCParser.IfStatementContext ctx) {
-        //Processar condición
         ExpressionNode condition = buildExpression(ctx.expression());
-
         IfNode ifNode = new IfNode(condition, null, null);
         statementListStack.peek().add(ifNode);
         nodeStack.push(ifNode);
+        //Lista de statements en el bloque THEN
         statementListStack.push(new ArrayList<>());
     }
 
@@ -163,15 +220,12 @@ public class AstBuilder extends MiniCBaseListener {
     public void exitIfStatement(MiniCParser.IfStatementContext ctx) {
         List<StatementNode> thenStatements = statementListStack.pop();
         IfNode ifNode = (IfNode) nodeStack.pop();
-
-        //Crear bloque para la rama "then"
         StatementNode thenBlock = null;
         if(!thenStatements.isEmpty()){
             thenBlock = thenStatements.size() == 1 ? thenStatements.get(0) : new BlockNode(thenStatements);
         }
-
-        //Crear bloque para la rama "else" si existe
         StatementNode elseBlock = null;
+        //Si existe un ELSE, se obtiene el ultimo bloque a nivel actual
         if(ctx.ELSE() != null){
             if (!statementListStack.isEmpty()) {
                 List<StatementNode> current = statementListStack.peek();
@@ -185,13 +239,33 @@ public class AstBuilder extends MiniCBaseListener {
             }
         }
 
+        //Reemplaza el IfNode incompleto con uno completo
         IfNode updatedIfNode = new IfNode(ifNode.getCondition(), (BlockNode) thenBlock, (BlockNode) elseBlock);
-
-        //Actualizar el nodo If en la pila de nodos
         List<StatementNode> currentStatements = statementListStack.peek();
         currentStatements.set(currentStatements.size()-1, updatedIfNode);
     }
 
+    //--------------------------Manejo de While-------------------------------
+    @Override
+    public void enterWhileStatement(MiniCParser.WhileStatementContext ctx){
+        ExpressionNode condition = buildExpression(ctx.expression());
+        WhileNode whileNode = new WhileNode(condition, null);
+        statementListStack.peek().add(whileNode);
+        nodeStack.push(whileNode);
+        statementListStack.push(new ArrayList<>());
+    }
+
+    @Override
+    public void exitWhileStatement(MiniCParser.WhileStatementContext ctx){
+        List<StatementNode> bodyStatements = statementListStack.pop();
+        WhileNode whileNode = (WhileNode) nodeStack.pop();
+        StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
+        WhileNode updateWhileNode = new WhileNode(whileNode.getCondition(), body);
+        List<StatementNode> currentStatements = statementListStack.peek();
+        currentStatements.set(currentStatements.size()-1, updateWhileNode);
+    }
+
+    //--------------------------Manejo de Do While-------------------------------
     @Override
     public void enterDoWhileStatement(MiniCParser.DoWhileStatementContext ctx){
         DoWhileNode doWhileNode = new DoWhileNode(null, null);
@@ -204,28 +278,23 @@ public class AstBuilder extends MiniCBaseListener {
     public void exitDoWhileStatement(MiniCParser.DoWhileStatementContext ctx){
         List<StatementNode> bodyStatements = statementListStack.pop();
         nodeStack.pop();
-
         StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
         ExpressionNode condition = buildExpression(ctx.expression());
-
         DoWhileNode update = new DoWhileNode(body, condition);
-
         List<StatementNode> current = statementListStack.peek();
         current.set(current.size()-1, update);
     }
 
+    //--------------------------Manejo de For-------------------------------
     @Override
     public void enterForStatement(MiniCParser.ForStatementContext ctx){
         StatementNode iniNode = null;
         if (ctx.forInit().expressionStatement() !=null && ctx.forInit().expressionStatement().expression() != null) {
             iniNode = new ExpressionStatementNode(buildExpression(ctx.forInit().expressionStatement().expression()));
         } else if (ctx.forInit().declaration() != null) {
-            //Manejo de forInit de ser necesario
         }
-
         ExpressionNode condition = ctx.expression() != null ? buildExpression(ctx.expression()) : null;
         ExpressionNode increment = ctx.forUpdate() != null ? buildExpression(ctx.forUpdate().expression()) : null;
-
         ForNode forNode = new ForNode(iniNode, condition, increment, null);
         statementListStack.peek().add(forNode);
         nodeStack.push(forNode);
@@ -236,11 +305,8 @@ public class AstBuilder extends MiniCBaseListener {
     public void exitForStatement(MiniCParser.ForStatementContext ctx){
         List<StatementNode> bodyStatementNodes = statementListStack.pop();
         ForNode forNode = (ForNode) nodeStack.pop();
-
         StatementNode body = bodyStatementNodes.size() == 1 ? bodyStatementNodes.get(0) : new BlockNode(bodyStatementNodes);
-
         ForNode update = new ForNode(forNode.getInit(), forNode.getCondition(), forNode.getIncrement(), body);
-
         List<StatementNode> current = statementListStack.peek();
         current.set(current.size()-1, update);
     }
@@ -282,11 +348,6 @@ public class AstBuilder extends MiniCBaseListener {
             return null;
         }
 
-        /*if (ctx.getChildCount()==1) {
-            return buildPrimaryExpression(ctx.logicalOrExpression().logicalAndExpression(0).equalityExpression(0).relationalExpression(0).additiveExpression(0).multiplicativeExpression(0).unaryExpression(0).primaryExpression());
-        }
-        return null;*/
-
         return buildLogicalOrExpression(ctx.logicalOrExpression());
     }
 
@@ -320,7 +381,7 @@ public class AstBuilder extends MiniCBaseListener {
             return new VariableNode(varName);
         }
 
-        //Parenthesized Expression
+
         if (ctx.LPAREN() != null && ctx.expression() != null){
             return buildExpression(ctx.expression());
         }
@@ -342,8 +403,6 @@ public class AstBuilder extends MiniCBaseListener {
         if (ctx.logicalAndExpression().size() == 1) {
             return buildLogicalAndExpression(ctx.logicalAndExpression(0));
         }
-
-        // Aquí podrías manejar la construcción de nodos para expresiones lógicas "OR"
         ExpressionNode left = buildLogicalAndExpression(ctx.logicalAndExpression(0));
         for (int i = 1; i < ctx.logicalAndExpression().size(); i++) {
             ExpressionNode right = buildLogicalAndExpression(ctx.logicalAndExpression(i));
@@ -443,28 +502,6 @@ public class AstBuilder extends MiniCBaseListener {
             return buildCallExpression(ctx.callExpression());
         }
         return null;
-    }
-
-    @Override
-    public void enterWhileStatement(MiniCParser.WhileStatementContext ctx){
-        ExpressionNode condition = buildExpression(ctx.expression());
-        WhileNode whileNode = new WhileNode(condition, null);
-        statementListStack.peek().add(whileNode);
-        nodeStack.push(whileNode);
-        statementListStack.push(new ArrayList<>());
-    }
-
-    @Override
-    public void exitWhileStatement(MiniCParser.WhileStatementContext ctx){
-        List<StatementNode> bodyStatements = statementListStack.pop();
-        WhileNode whileNode = (WhileNode) nodeStack.pop();
-
-        StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
-
-        WhileNode updateWhileNode = new WhileNode(whileNode.getCondition(), body);
-
-        List<StatementNode> currentStatements = statementListStack.peek();
-        currentStatements.set(currentStatements.size()-1, updateWhileNode);
     }
 
     @Override

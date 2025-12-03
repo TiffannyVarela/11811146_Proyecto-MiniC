@@ -18,9 +18,21 @@ public class SemanticChecker {
         this.hasReturnStatement = false;
     }
 
+    private void registerRuntimeFunctions() {
+        currentScope.addSymbol(new Symbol("print_int", Type.VOID, true));
+        currentScope.addSymbol(new Symbol("print_string", Type.VOID, true));
+        currentScope.addSymbol(new Symbol("print_char", Type.VOID, true));
+        currentScope.addSymbol(new Symbol("print_bool", Type.VOID, true));
+        currentScope.addSymbol(new Symbol("println", Type.VOID, true));
+        currentScope.addSymbol(new Symbol("read_int", Type.INT, true));
+        currentScope.addSymbol(new Symbol("read_string", Type.STRING, true));
+        currentScope.addSymbol(new Symbol("read_char", Type.CHAR, true));
+    }
+
     public void check(AstNode ast) {
         errors.clear();
-        
+        registerRuntimeFunctions();
+
         System.out.println("=== INICIANDO ANÁLISIS SEMÁNTICO ===");
         System.out.println("Tipo del nodo raíz: " + ast.getClass().getSimpleName());
 
@@ -54,13 +66,19 @@ public class SemanticChecker {
             if (node instanceof VarDeclNode) {
                 visitGlobalVarDecl((VarDeclNode) node);
             } else if (node instanceof FunctionNode) {
-                visitFunctionDecl((FunctionNode) node);
+                FunctionNode func = (FunctionNode) node;
+                if (func.getBody() != null) {
+                    visitFunctionDecl(func);
+                }
             }
         }
         
         for (AstNode node : program.getChildren()) {
             if (node instanceof FunctionNode) {
-                visitFunction((FunctionNode) node);
+                FunctionNode func = (FunctionNode) node;
+                if (func.getBody() != null) {
+                    visitFunction(func);
+                }
             }
         }
         
@@ -199,8 +217,6 @@ public class SemanticChecker {
         String type = node.getType();
         
         System.out.println("SEMANTIC CHECKER: Registrando variable en tabla de símbolos: " + type + " " + name);
-        
-        // Registrar la variable en la tabla de símbolos
         if (currentScope.lookupCurrentScope(name) != null) {
             addError("Variable '" + name + "' ya está declarada en este ámbito");
             return null;
@@ -213,8 +229,7 @@ public class SemanticChecker {
             System.out.println("SEMANTIC CHECKER: ✗ No se pudo registrar variable '" + name + "'");
             addError("No se pudo agregar variable '" + name + "'");
         }
-        
-        // Verificar inicialización si existe
+
         if (node.hasInitialNode()) {
             System.out.println("SEMANTIC CHECKER: Verificando inicialización para: " + name);
             String initType = visitExpression(node.getInitialNode());
@@ -289,7 +304,7 @@ public class SemanticChecker {
         ExpressionNode target = assign.getTarget();
         String valueType = visitExpression(assign.getValue());
         
-        if (target instanceof VariableNode) {  // ← CAMBIA IdentifierNode por VariableNode
+        if (target instanceof VariableNode) {
             String varName = ((VariableNode) target).getName();
             Symbol symbol = currentScope.lookup(varName);
             
@@ -335,7 +350,7 @@ public class SemanticChecker {
     private String visitExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
             return Type.INT;
-        } else if (expr instanceof VariableNode) {  // ← Agrega esta línea
+        } else if (expr instanceof VariableNode) {
             return visitVariable((VariableNode) expr);
         } else if (expr instanceof BinaryOpNode) {
             return visitBinaryOp((BinaryOpNode) expr);
@@ -456,16 +471,17 @@ public class SemanticChecker {
     }
 
     private boolean isRuntimeFunction(String funcName) {
-        return funcName.equals("print_int") || funcName.equals("print_str") || 
+        return funcName.equals("print_int") || funcName.equals("print_string") || 
             funcName.equals("print_char") || funcName.equals("print_bool") ||
-            funcName.equals("println") || funcName.equals("read_int") || 
+            funcName.equals("println") || funcName.equals("read_int")|| 
+            funcName.equals("read_string") || 
             funcName.equals("read_char");
     }
 
     private String handleRuntimeFunctionCall(String funcName, List<ExpressionNode> args) {
         switch (funcName) {
             case "print_int":
-            case "print_str":
+            case "print_string":
             case "print_char":
             case "print_bool":
                 if (args.size() != 1) {

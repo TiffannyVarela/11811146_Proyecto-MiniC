@@ -11,6 +11,7 @@ program
 
 declaration
     : typeSpecifier initDeclaratorList SEMI
+    | functionDeclaration
     ;
 
 initDeclaratorList
@@ -31,6 +32,10 @@ typeSpecifier
     | BOOL
     | VOID
     | STRING
+    ;
+
+functionDeclaration
+    :typeSpecifier Identifier LPAREN parameterList? RPAREN SEMI
     ;
 
 functionDefinition
@@ -97,7 +102,6 @@ expressionStatement
     : expression? SEMI
     ;
 
-// Expressions
 expression
     : logicalOrExpression
     ;

@@ -1,0 +1,19 @@
+; ============ CÓDIGO IR GENERADO ============
+; Generado por MiniC Compiler
+
+; === DECLARACIONES GLOBALES ===
+
+; === FUNCIONES ===
+
+FUNCTION main: int
+LOCAL x: int
+t0 = 11
+x = t0
+LOCAL y: int
+t1 = 2
+y = t1
+t2 = x
+t3 = y
+t4 = t2 ADD t3
+RETURN t4
+ENDFUNC main

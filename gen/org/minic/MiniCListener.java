@@ -60,6 +60,16 @@ public interface MiniCListener extends ParseTreeListener {
 	 */
 	void exitTypeSpecifier(MiniCParser.TypeSpecifierContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link MiniCParser#functionDeclaration}.
+	 * @param ctx the parse tree
+	 */
+	void enterFunctionDeclaration(MiniCParser.FunctionDeclarationContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#functionDeclaration}.
+	 * @param ctx the parse tree
+	 */
+	void exitFunctionDeclaration(MiniCParser.FunctionDeclarationContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link MiniCParser#functionDefinition}.
 	 * @param ctx the parse tree
 	 */

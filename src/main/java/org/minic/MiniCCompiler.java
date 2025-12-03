@@ -21,15 +21,13 @@ public class MiniCCompiler {
         String outputFile = null;
         String inputFile = null;
         
-        // PRIMERO verificar si es --help
         for (int i = 0; i < args.length; i++) {
             if (args[i].equals("--help")) {
                 showHelp();
-                return;  // Salir inmediatamente después de mostrar ayuda
+                return;
             }
         }
         
-        // LUEGO procesar los demás argumentos
         for (int i = 0; i < args.length; i++) {
             switch (args[i]) {
                 case "--dump-ir":
@@ -50,7 +48,6 @@ public class MiniCCompiler {
                     }
                     break;
                 default:
-                    // Si no es una opción, asumimos que es el archivo de entrada
                     if (!args[i].startsWith("-") && inputFile == null) {
                         inputFile = args[i];
                     }
@@ -58,7 +55,6 @@ public class MiniCCompiler {
             }
         }
         
-        // Compilar archivo individual
         if (inputFile != null) {
             compileTestFile(inputFile, dumpIr, optimize, outputFile);
         } else {
@@ -107,7 +103,7 @@ public class MiniCCompiler {
         for (String testFile : testFiles) {
             testFile = testFile.trim();
             if (testFile.isEmpty() || testFile.startsWith("#")) {
-                continue; // Saltar líneas vacías o comentarios
+                continue;
             }
 
             totalCount++;
@@ -140,12 +136,10 @@ public class MiniCCompiler {
         System.out.println("Leyendo archivo: " + testFile);
         CharStream input = CharStreams.fromFileName(testFile);
 
-        // Crear lexer
         System.out.println("Análisis léxico...");
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-        // Crear parser
         System.out.println("Análisis sintáctico...");
         MiniCParser parser = new MiniCParser(tokens);
 
@@ -160,28 +154,24 @@ public class MiniCCompiler {
             }
         });
 
-        // Parseo y construcción del árbol
         MiniCParser.ProgramContext tree = parser.program();
         
         System.out.println("Construyendo AST...");
         AstBuilder astBuilder = new AstBuilder();
         AstNode ast = astBuilder.build(tree);
 
-        // Compilar el AST con opciones
         Compiler.compile(ast, testFile, dumpIr, optimize, outputFile);
         
-        System.out.println("✅ Proceso de compilación completado para: " + testFile);
+        System.out.println("Proceso de compilación completado para: " + testFile);
     }
 
-    // Método auxiliar para compilar desde un string (útil para pruebas)
     public static void compileFromString(String sourceCode, String fileName) throws Exception {
         System.out.println("Compilando código desde string...");
         CharStream input = CharStreams.fromString(sourceCode);
 
-        // Crear lexer y parser
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        MiniCParser parser = new MiniCParser(tokens); // Cambiado a MiniCParser
+        MiniCParser parser = new MiniCParser(tokens); 
 
         parser.removeErrorListeners();
         parser.addErrorListener(new BaseErrorListener() {
@@ -194,12 +184,10 @@ public class MiniCCompiler {
             }
         });
 
-        // Parseo y construcción del árbol
-        MiniCParser.ProgramContext tree = parser.program(); // Cambiado a MiniCParser.ProgramContext
+        MiniCParser.ProgramContext tree = parser.program(); 
         AstBuilder astBuilder = new AstBuilder();
         AstNode ast = astBuilder.build(tree);
 
-        // Compilar el AST
         Compiler.compile(ast, fileName);
     }
 

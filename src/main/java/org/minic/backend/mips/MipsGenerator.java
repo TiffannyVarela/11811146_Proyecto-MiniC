@@ -53,14 +53,11 @@ public class MipsGenerator {
     }
 
     private void generateProgram(ProgramNode program) {
-        // Primera pasada: procesar variables globales
         for (AstNode node : program.getChildren()) {
             if (node instanceof VarDeclNode) {
                 generateGlobalVar((VarDeclNode) node);
             }
         }
-        
-        // Segunda pasada: procesar funciones
         for (AstNode node : program.getChildren()) {
             if (node instanceof FunctionNode) {
                 generateFunction((FunctionNode) node);
@@ -73,9 +70,8 @@ public class MipsGenerator {
         String label = "_" + name;
 
         if (varDeclNode.isArray()) {
-            // Array global
             int size = calculateArraySize(varDeclNode);
-            data.add(label + ": .space " + (size * 4)); // 4 bytes por int
+            data.add(label + ": .space " + (size * 4));
             globalVars.put(name, size * 4);
         } else {
             data.add(label + ": .word 0");
@@ -87,35 +83,47 @@ public class MipsGenerator {
         int localesSize = calculateLocalVarsSize(functionNode);
         String funcName = functionNode.getName();
         text.add(funcName + ":");
-
-        // Prólogo
-        text.add("  addiu $sp, $sp, -8");
-        text.add("  sw $ra, 4($sp)");
-        text.add("  sw $fp, 0($sp)");
+        text.add("  # === PRÓLOGO ===");
+        text.add("  addiu $sp, $sp, -" + (8 + 32));
+        text.add("  sw $ra, " + (8 + 32 - 4) + "($sp)");
+        text.add("  sw $fp, " + (8 + 32 - 8) + "($sp)"); 
         text.add("  move $fp, $sp");
+        
+        text.add("  # Guardar registros callee-saved usados");
+        text.add("  sw $s0, " + (8 + 32 - 12) + "($sp)");
+        text.add("  sw $s1, " + (8 + 32 - 16) + "($sp)");
+        text.add("  sw $s2, " + (8 + 32 - 20) + "($sp)");
+        text.add("  sw $s3, " + (8 + 32 - 24) + "($sp)");
+        text.add("  sw $s4, " + (8 + 32 - 28) + "($sp)");
+        text.add("  sw $s5, " + (8 + 32 - 32) + "($sp)");
+        text.add("  sw $s6, " + (8 + 32 - 36) + "($sp)");
+        text.add("  sw $s7, " + (8 + 32 - 40) + "($sp)");
 
-        // Espacio para variables locales
         if (localesSize > 0) {
-            text.add("  addiu $sp, $sp, -" + localesSize);
+            int alignedSize = ((localesSize + 7) / 8) * 8;
+            text.add("  addiu $sp, $sp, -" + alignedSize);
         }
 
-        // Generar cuerpo de la función
         generateStatement(functionNode.getBody());
 
-        // Si es main
-        if (funcName.equals("main")) {
-            // Salir al final del main
-            text.add("  li $v0, 10");
-            text.add("  syscall");
-        }
-
-        // Epílogo
         if (localesSize > 0) {
-            text.add("  addiu $sp, $sp, " + localesSize);
+            int alignedSize = ((localesSize + 7) / 8) * 8;
+            text.add("  addiu $sp, $sp, " + alignedSize);
         }
-        text.add("  lw $fp, 0($sp)");
-        text.add("  lw $ra, 4($sp)");
-        text.add("  addiu $sp, $sp, 8");
+        
+        text.add("  # Restaurar registros callee-saved");
+        text.add("  lw $s7, " + (8 + 32 - 40) + "($sp)");
+        text.add("  lw $s6, " + (8 + 32 - 36) + "($sp)");
+        text.add("  lw $s5, " + (8 + 32 - 32) + "($sp)");
+        text.add("  lw $s4, " + (8 + 32 - 28) + "($sp)");
+        text.add("  lw $s3, " + (8 + 32 - 24) + "($sp)");
+        text.add("  lw $s2, " + (8 + 32 - 20) + "($sp)");
+        text.add("  lw $s1, " + (8 + 32 - 16) + "($sp)");
+        text.add("  lw $s0, " + (8 + 32 - 12) + "($sp)");
+        
+        text.add("  lw $fp, " + (8 + 32 - 8) + "($sp)");
+        text.add("  lw $ra, " + (8 + 32 - 4) + "($sp)");
+        text.add("  addiu $sp, $sp, " + (8 + 32));
         text.add("  jr $ra");
     }
 
@@ -250,14 +258,21 @@ public class MipsGenerator {
         freeTemp(value);
     }
 
-    // ========== GENERACIÓN DE EXPRESIONES ==========
-
     private String generateExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
             return generateNumber((NumberNode) expr);
         } else if (expr instanceof IdentifierNode) {
+            String name = ((IdentifierNode)expr).getName();
+            VarDeclNode declNode = findVarDecl(name);
+            if (declNode != null && declNode.isArray()) {
+                return generateArrayAccess(expr);
+            }
             return generateIdentifier((IdentifierNode) expr);
         } else if (expr instanceof BinaryOpNode) {
+            BinaryOpNode binaryOpNode = (BinaryOpNode) expr;
+            if (binaryOpNode.getOperator().equals("[")) {
+                return generateArrayIndexing(binaryOpNode);
+            }
             return generateBinaryOp((BinaryOpNode) expr);
         } else if (expr instanceof UnaryOpNode) {
             return generateUnaryOp((UnaryOpNode) expr);
@@ -366,7 +381,7 @@ public class MipsGenerator {
                     }
                 }
                 break;
-            case "*": // Dereferenciación
+            case "*":
                 text.add("  lw " + result + ", 0(" + operand + ")");
                 break;
             default:
@@ -379,9 +394,9 @@ public class MipsGenerator {
     
     private String generateFunctionCall(FunctionCallNode call) {
         String funcName = call.getFunctionName();
-        
-        // Manejar funciones de runtime específicas
-        if (funcName.equals("print_int")) {
+        if (funcName.equals("read_str")) {
+            return generateRuntimeReadStr(call);
+        } else if (funcName.equals("print_int")) {
             return generateRuntimePrintInt(call);
         } else if (funcName.equals("print_str")) {
             return generateRuntimePrintStr(call);
@@ -397,8 +412,22 @@ public class MipsGenerator {
             return generateRuntimeReadChar();
         }
         
-        // Función normal
         return generateNormalFunctionCall(call);
+    }
+
+    private String generateRuntimeReadStr(FunctionCallNode call) {
+        if (call.getArguments().size() >= 2) {
+            String bufArg = generateExpression(call.getArguments().get(0));
+            String maxlenArg = generateExpression(call.getArguments().get(1));
+            
+            text.add("  move $a0, " + bufArg);
+            text.add("  move $a1, " + maxlenArg);
+            text.add("  jal read_str");
+            
+            freeTemp(bufArg);
+            freeTemp(maxlenArg);
+        }
+        return newTemp();
     }
 
     private String generateRuntimePrintInt(FunctionCallNode call) {
@@ -530,8 +559,6 @@ public class MipsGenerator {
         return temp;
     }
 
-    // ========== MÉTODOS AUXILIARES ==========
-
     private String newTemp() {
         if (!availableTemps.isEmpty()) {
             return availableTemps.pop();
@@ -567,7 +594,7 @@ public class MipsGenerator {
     
     private int calculateLocalVarsSize(FunctionNode function) {
         localVars.clear();
-        currentLocal = -4;
+        currentLocal = -8;
         
         if (function.getParameters() != null) {
             for (VarDeclNode param : function.getParameters()) {
@@ -575,15 +602,13 @@ public class MipsGenerator {
             }
         }
 
-        if (function.getBody() != null) {
-        }
+        currentLocal = alignTo8Bytes(currentLocal);
+
+        currentLocal -=32;
+        currentLocal = alignTo8Bytes(currentLocal);
         
-        // Margen para temporales
-        currentLocal -= 32;
-        
-        return Math.abs(currentLocal) - 8;
+        return Math.abs(currentLocal);
     }
-    
     
     private void allocateLocalVar(String name, boolean isArray) {
         if (isArray) {
@@ -599,11 +624,11 @@ public class MipsGenerator {
             // Para variables simples, 4 bytes
             currentLocal -= 4;
         }
+        currentLocal = (currentLocal/4)*4;
         localVars.put(name, currentLocal);
     }
     
     private VarDeclNode findVarDecl(String varName) {
-        // En una implementación real, buscarías en la tabla de símbolos
         return null;
     }
     
@@ -612,7 +637,8 @@ public class MipsGenerator {
             text.add("  la $t9, _" + varName);
             text.add("  lw " + destReg + ", 0($t9)");
         } else if (localVars.containsKey(varName)) {
-            text.add("  lw " + destReg + ", " + localVars.get(varName) + "($fp)");
+            int offset = localVars.get(varName);
+            text.add("  lw " + destReg + ", " + offset + "($fp)");
         } else {
             throw new RuntimeException("Variable no encontrada: " + varName);
         }
@@ -623,7 +649,8 @@ public class MipsGenerator {
             text.add("  la $t9, _" + varName);
             text.add("  sw " + srcReg + ", 0($t9)");
         } else if (localVars.containsKey(varName)) {
-            text.add("  sw " + srcReg + ", " + localVars.get(varName) + "($fp)");
+            int offset = localVars.get(varName);
+            text.add("  lw " + srcReg + ", " + offset + "($fp)");
         } else {
             throw new RuntimeException("Variable no encontrada: " + varName);
         }
@@ -634,5 +661,93 @@ public class MipsGenerator {
                   .replace("\"", "\\\"")
                   .replace("\n", "\\n")
                   .replace("\t", "\\t");
+    }
+
+    private String generateArrayAccess(ExpressionNode expr) {
+        if (expr instanceof IdentifierNode) {
+            // Acceso simple a variable
+            return generateIdentifier((IdentifierNode) expr);
+        } else if (expr instanceof BinaryOpNode) {
+            BinaryOpNode binOp = (BinaryOpNode) expr;
+            if (binOp.getOperator().equals("[")) {
+                return generateArrayIndexing(binOp);
+            }
+        }
+        throw new RuntimeException("Expresión de acceso no soportada");
+    }
+
+    private String generateArrayIndexing(BinaryOpNode arrayAccess) {
+        
+        ExpressionNode arrayNameNode = arrayAccess.getLeft();
+        ExpressionNode indexNode = arrayAccess.getRight();
+        
+        if (!(arrayNameNode instanceof IdentifierNode)) {
+            throw new RuntimeException("Se esperaba identificador de array");
+        }
+        
+        String arrayName = ((IdentifierNode) arrayNameNode).getName();
+        String indexTemp = generateExpression(indexNode);
+        String resultTemp = newTemp();
+        
+        VarDeclNode arrayDecl = findVarDecl(arrayName);
+        if (arrayDecl != null && arrayDecl.isArray()) {
+            if (arrayDecl.getType().contains("[][]")) {
+                text.add("  # Cálculo de offset para arreglo 2D " + arrayName);
+                
+                //int rows = arrayDecl.getArraySize();
+                int cols = 5;
+                
+                if (indexNode instanceof BinaryOpNode) {
+                    BinaryOpNode nestedIndex = (BinaryOpNode) indexNode;
+                    if (nestedIndex.getOperator().equals("[")) {
+                        String iTemp = generateExpression(nestedIndex.getLeft());
+                        String jTemp = generateExpression(nestedIndex.getRight());
+                        
+                        text.add("  li $t8, " + cols);
+                        text.add("  mul $t9, " + iTemp + ", $t8");
+                        text.add("  add $t9, $t9, " + jTemp);
+                        text.add("  li $t8, 4");
+                        text.add("  mul $t9, $t9, $t8");
+                        
+                        if (globalVars.containsKey(arrayName)) {
+                            text.add("  la $t8, _" + arrayName);
+                        } else if (localVars.containsKey(arrayName)) {
+                            text.add("  addiu $t8, $fp, " + localVars.get(arrayName));
+                        }
+                        
+                        text.add("  add $t8, $t8, $t9");
+                        text.add("  lw " + resultTemp + ", 0($t8)");
+                        
+                        freeTemp(iTemp);
+                        freeTemp(jTemp);
+                        freeTemp(indexTemp);
+                        return resultTemp;
+                    }
+                }
+            }
+            
+            text.add("  # Cálculo de offset para arreglo 1D " + arrayName);
+            text.add("  li $t8, 4");
+            text.add("  mul $t9, " + indexTemp + ", $t8");
+            
+            if (globalVars.containsKey(arrayName)) {
+                text.add("  la $t8, _" + arrayName);
+            } else if (localVars.containsKey(arrayName)) {
+                text.add("  addiu $t8, $fp, " + localVars.get(arrayName));
+            }
+            
+            text.add("  add $t8, $t8, $t9");
+            text.add("  lw " + resultTemp + ", 0($t8)");
+        } else {
+            throw new RuntimeException(arrayName + " no es un arreglo");
+        }
+        
+        freeTemp(indexTemp);
+        return resultTemp;
+    }
+
+    private int alignTo8Bytes(int size) {
+        // Alinear a múltiplo de 8
+        return ((size + 7) / 8) * 8;
     }
 }

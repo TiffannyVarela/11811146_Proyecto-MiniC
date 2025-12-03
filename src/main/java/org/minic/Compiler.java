@@ -11,28 +11,52 @@ import org.minic.optimizer.ConstantFolder;
 import org.minic.semantic.SemanticChecker;
 
 public class Compiler {
-    // En Compiler.java, modifica el método compile:
-public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boolean optimize, String outputFile) {
-       try {
+    public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boolean optimize, String outputFile) {
+        try {
             System.out.println("\n--- Análisis Semántico ---");
             SemanticChecker semanticChecker = new SemanticChecker();
             semanticChecker.check(ast);
             System.out.println("Análisis semántico completado sin errores");
-
-            // OPTIMIZACIÓN (si está habilitada)
+            
             AstNode processedAst = ast;
+            List<String> irBeforeOptimization = null;
+            List<String> irAfterOptimization = null;  // <-- AÑADIR esta variable
+
+            if (dumpIr && optimize) {
+                System.out.println("\n--- CÓDIGO IR (ANTES de optimización) ---");
+                IrGenerator irGenerator = new IrGenerator();
+                irBeforeOptimization = irGenerator.generate(ast);
+                printIrSideBySide(irBeforeOptimization, null, "ANTES");
+            }
+
             if (optimize) {
                 System.out.println("\n--- Optimización ---");
                 processedAst = ConstantFolder.optimize(ast);
                 System.out.println("Optimización de constantes completada");
+                
+                if (dumpIr && optimize) {
+                    System.out.println("\n--- CÓDIGO IR (DESPUÉS de optimización) ---");
+                    IrGenerator irGenerator = new IrGenerator();
+                    irAfterOptimization = irGenerator.generate(processedAst);
+                    
+                    if (irBeforeOptimization != null) {
+                        printIrSideBySide(irBeforeOptimization, irAfterOptimization, "COMPARACIÓN");
+                    } else {
+                        printIrSideBySide(null, irAfterOptimization, "DESPUÉS");
+                    }
+                    
+                    // Guardar IR optimizado en archivo
+                    String irFilePath = sourceFile.replace(".mc", "_opt.ir");
+                    writeIrToFile(irAfterOptimization, irFilePath);
+                    System.out.println("Código IR optimizado guardado en: " + irFilePath);
+                }
             }
 
-            // GENERACIÓN DE IR (si está habilitada)
-            if (dumpIr) {
-                System.out.println("\n--- Generación de Código Intermedio ---");
+            if (dumpIr && !optimize) {
+                System.out.println("\n--- GENERACIÓN DE CÓDIGO INTERMEDIO ---");
                 IrGenerator irGenerator = new IrGenerator();
                 List<String> irCode = irGenerator.generate(processedAst);
-                
+                printIrSideBySide(irCode, null, "IR");
                 String irFilePath = sourceFile.replace(".mc", ".ir");
                 writeIrToFile(irCode, irFilePath);
                 System.out.println("Código IR generado en: " + irFilePath);
@@ -41,26 +65,85 @@ public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boole
             System.out.println("\n--- Generación de Código MIPS ---");
             MipsGenerator mipsGenerator = new MipsGenerator();
             String mipsCode = mipsGenerator.generate(processedAst);
-            
-            // Usar archivo de salida personalizado si se especificó
             String outputFilePath = outputFile != null ? outputFile : sourceFile.replace(".mc", ".s");
             writeToFile(mipsCode, outputFilePath);
             System.out.println("Código MIPS generado en: " + outputFilePath);
-            
-            // Mostrar información del AST
             printAstInfo(processedAst);
             
-       } catch (CompilationException e) {
-           throw e;
-       } catch (Exception e) {
-           throw new CompilationException("Error durante la compilación: " + e.getMessage(), e);
-       }
+        } catch (CompilationException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new CompilationException("Error durante la compilación: " + e.getMessage(), e);
+        }
     }
 
-    // === MÉTODO ORIGINAL (para compatibilidad) ===
+    private static void printIrSideBySide(List<String> irBefore, List<String> irAfter, String title) {
+        System.out.println("\n" + "=".repeat(80));
+        System.out.println("  " + title + " - CÓDIGO INTERMEDIO");
+        System.out.println("=".repeat(80));
+        
+        if (irBefore == null && irAfter == null) {
+            System.out.println("No hay código IR para mostrar");
+            return;
+        }
+        
+        if (irBefore != null && irAfter != null) {
+            // Mostrar comparación lado a lado
+            System.out.printf("%-40s | %-40s\n", "ANTES de optimización", "DESPUÉS de optimización");
+            System.out.println("-".repeat(80));
+            
+            int maxLines = Math.max(irBefore.size(), irAfter.size());
+            for (int i = 0; i < maxLines; i++) {
+                String beforeLine = i < irBefore.size() ? irBefore.get(i) : "";
+                String afterLine = i < irAfter.size() ? irAfter.get(i) : "";
+                
+                // Resaltar diferencias
+                if (!beforeLine.equals(afterLine)) {
+                    System.out.printf("\u001B[31m%-40s\u001B[0m | \u001B[32m%-40s\u001B[0m\n", 
+                        truncate(beforeLine, 38), truncate(afterLine, 38));
+                } else {
+                    System.out.printf("%-40s | %-40s\n", 
+                        truncate(beforeLine, 38), truncate(afterLine, 38));
+                }
+            }
+            
+            // Estadísticas
+            System.out.println("\n" + "-".repeat(80));
+            System.out.println("ESTADÍSTICAS DE OPTIMIZACIÓN:");
+            System.out.println("  • Líneas antes: " + irBefore.size());
+            System.out.println("  • Líneas después: " + irAfter.size());
+            System.out.println("  • Líneas eliminadas: " + (irBefore.size() - irAfter.size()));
+            System.out.println("  • Tasa de compresión: " + 
+                String.format("%.1f%%", (1 - (double)irAfter.size()/irBefore.size()) * 100));
+            
+        } else if (irBefore != null) {
+            // Solo mostrar "antes"
+            System.out.println("Código IR (sin optimización):");
+            System.out.println("-".repeat(80));
+            for (String line : irBefore) {
+                System.out.println("  " + line);
+            }
+        } else if (irAfter != null) {
+            // Solo mostrar "después"
+            System.out.println("Código IR (con optimización):");
+            System.out.println("-".repeat(80));
+            for (String line : irAfter) {
+                System.out.println("  " + line);
+            }
+        }
+        
+        System.out.println("=".repeat(80));
+    }
+
+    private static String truncate(String str, int length) {
+        if (str.length() <= length) return str;
+        return str.substring(0, length - 3) + "...";
+    }
+
     public static void compile(AstNode ast, String sourceFile) {
         compile(ast, sourceFile, false, false, null);
     }
+    
     private static void printAstInfo(AstNode ast) {
         if (ast instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) ast;
@@ -101,7 +184,6 @@ public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boole
             Files.write(Paths.get(filePath), content.getBytes());
             System.out.println("Archivo guardado: " + filePath);
             
-            // Mostrar tamaño del archivo generado
             long fileSize = Files.size(Paths.get(filePath));
             System.out.println("Tamaño del archivo: " + fileSize + " bytes");
             
@@ -110,14 +192,12 @@ public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boole
         }
     }
 
-    // === AGREGAR ESTE NUEVO MÉTODO PARA GUARDAR CÓDIGO IR ===
     private static void writeIrToFile(List<String> irCode, String filePath) {
         try {
             String content = String.join("\n", irCode);
             Files.write(Paths.get(filePath), content.getBytes());
             System.out.println("Archivo IR guardado: " + filePath);
             
-            // Mostrar tamaño del archivo IR generado
             long fileSize = Files.size(Paths.get(filePath));
             System.out.println("Tamaño del archivo IR: " + fileSize + " bytes");
             

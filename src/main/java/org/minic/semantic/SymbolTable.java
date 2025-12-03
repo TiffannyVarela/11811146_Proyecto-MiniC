@@ -12,7 +12,7 @@ public class SymbolTable {
 
     public boolean addSymbol(Symbol symbol){
         if (symbols.containsKey(symbol.getName())) {
-            return false; // Símbolo ya existe en el ámbito actual
+            return false;
         }
         symbols.put(symbol.getName(), symbol);
         return true;
@@ -25,7 +25,7 @@ public class SymbolTable {
         } else if (parent != null) {
             return parent.lookup(name);
         } else {
-            return null; // No encontrado
+            return null;
         }
     }
 
