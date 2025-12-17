@@ -88,12 +88,16 @@ public class IrGenerator {
         if (function.getBody() != null) {
             generateBlock(function.getBody());
         }
+
+        if ("void".equals(function.getReturnType())) {
+            irCode.add("RETURN");
+        }
+
         
         irCode.add("ENDFUNC " + funcName);
     }
 
     private void generateBlock(BlockNode block) {
-        System.out.println("IR GENERATOR: === INICIO generateBlock ===");
         System.out.println("IR GENERATOR: Número de statements: " + block.getStatements().size());
         
         for (int i = 0; i < block.getStatements().size(); i++) {
@@ -101,39 +105,28 @@ public class IrGenerator {
             System.out.println("IR GENERATOR: Statement " + i + ": " + stmt.getClass().getSimpleName());
             generateStatement(stmt);
         }
-        
-        System.out.println("IR GENERATOR: === FIN generateBlock ===");
     }
     
     private void generateStatement(StatementNode stmt) {
         System.out.println("IR GENERATOR: generateStatement called for: " + stmt.getClass().getSimpleName());
         
         if (stmt instanceof ExpressionStatementNode) {
-            System.out.println("IR GENERATOR: It's an ExpressionStatementNode");
             generateExpressionStatement((ExpressionStatementNode) stmt);
         } else if (stmt instanceof ReturnNode) {
-            System.out.println("IR GENERATOR: It's a ReturnNode");
             generateReturnStatement((ReturnNode) stmt);
         } else if (stmt instanceof BlockNode) {
-            System.out.println("IR GENERATOR: It's a BlockNode");
             generateBlock((BlockNode) stmt);
         } else if (stmt instanceof IfNode) {
-            System.out.println("IR GENERATOR: It's an IfNode");
             generateIfStatement((IfNode) stmt);
         } else if (stmt instanceof WhileNode) {
-            System.out.println("IR GENERATOR: It's a WhileNode");
             generateWhileStatement((WhileNode) stmt);
         } else if (stmt instanceof DoWhileNode) {
-            System.out.println("IR GENERATOR: It's a DoWhileNode");
             generateDoWhileStatement((DoWhileNode) stmt);
         } else if (stmt instanceof ForNode) {
-            System.out.println("IR GENERATOR: It's a ForNode");
             generateForStatement((ForNode) stmt);
         } else if (stmt instanceof AssignmentNode) {
-            System.out.println("IR GENERATOR: It's an AssignmentNode");
             generateAssignment((AssignmentNode) stmt);
         } else if (stmt instanceof VarDeclStatementNode) {
-            System.out.println("IR GENERATOR: FINALLY! It's a VarDeclStatementNode");
             generateVarDeclStatement((VarDeclStatementNode) stmt);
         } else {
             System.out.println("IR GENERATOR: Unknown statement type: " + stmt.getClass().getSimpleName());
@@ -141,7 +134,6 @@ public class IrGenerator {
     }
 
     private void generateVarDeclStatement(VarDeclStatementNode varDeclStmt) {
-        System.out.println("IR GENERATOR: === Procesando VarDeclStatementNode ===");
         System.out.println("IR GENERATOR: Nombre: " + varDeclStmt.getVarDeclNode().getName());
         System.out.println("IR GENERATOR: Tiene inicialización: " + varDeclStmt.getVarDeclNode().hasInitialNode());
         
@@ -164,7 +156,6 @@ public class IrGenerator {
         } else {
             System.out.println("IR GENERATOR: " + varName + " NO tiene inicialización");
         }
-        System.out.println("IR GENERATOR: === Fin VarDeclStatementNode ===");
     }
 
     private void generateExpressionStatement(ExpressionStatementNode exprStmt) {
@@ -173,6 +164,7 @@ public class IrGenerator {
             freeTemp(temp);
         }
     }
+
 
     private void generateReturnStatement(ReturnNode returnNode) {
         if (returnNode.getReturnValue() != null) {
@@ -264,17 +256,39 @@ public class IrGenerator {
     private void generateAssignment(AssignmentNode assign) {
         String value = generateExpression(assign.getValue());
         ExpressionNode target = assign.getTarget();
-        
+
         if (target instanceof IdentifierNode) {
-            String varName = ((IdentifierNode) target).getName();
-            irCode.add(varName + " = " + value);
+            irCode.add(((IdentifierNode) target).getName() + " = " + value);
+
         } else if (target instanceof VariableNode) {
-            String varName = ((VariableNode) target).getName();
-            irCode.add(varName + " = " + value);
+            irCode.add(((VariableNode) target).getName() + " = " + value);
+
+        } else if (target instanceof ArrayAccessNode) {
+            ArrayAccessNode arrayAccess = (ArrayAccessNode) target;
+
+            ExpressionNode arrayExpr = arrayAccess.getArray();
+            String arrayName;
+
+            if (arrayExpr instanceof IdentifierNode) {
+                arrayName = ((IdentifierNode) arrayExpr).getName();
+            } else if (arrayExpr instanceof VariableNode) {
+                arrayName = ((VariableNode) arrayExpr).getName();
+            } else {
+                arrayName = generateExpression(arrayExpr);
+            }
+
+            ExpressionNode indexExpr = arrayAccess.getIndices().get(0);
+            String indexTemp = generateExpression(indexExpr);
+
+            irCode.add(arrayName + "[" + indexTemp + "] = " + value);
+
+            freeTemp(indexTemp);
         }
-        
+
         freeTemp(value);
     }
+
+
 
     private String generateExpression(ExpressionNode expr) {
         if (expr instanceof NumberNode) {
@@ -295,7 +309,10 @@ public class IrGenerator {
             return generateString((StringNode) expr);
         } else if (expr instanceof CharNode) {
             return generateChar((CharNode) expr);
+        } else if (expr instanceof ArrayAccessNode) {
+            return generateArrayAccess((ArrayAccessNode) expr);
         }
+
         
         // Fallback
         String temp = newTemp();
@@ -322,19 +339,19 @@ public class IrGenerator {
     }
 
     private String generateBinaryOp(BinaryOpNode binOp) {
-        String left = generateExpression(binOp.getLeft());
-        String right = generateExpression(binOp.getRight());
-        String result = newTemp();
-        
-        String operator = binOp.getOperator();
-        String irOperator = convertOperator(operator);
-        
-        irCode.add(result + " = " + left + " " + irOperator + " " + right);
-        
-        freeTemp(left);
-        freeTemp(right);
-        return result;
-    }
+    String left = generateExpression(binOp.getLeft());
+    String right = generateExpression(binOp.getRight());
+    String result = newTemp();
+    
+    String operator = binOp.getOperator();
+    String irOperator = convertOperator(operator);
+    
+    irCode.add(result + " = " + left + " " + irOperator + " " + right);
+    
+    freeTemp(left);
+    freeTemp(right);
+    return result;
+}
 
     private String generateUnaryOp(UnaryOpNode unaryOp) {
         String operand = generateExpression(unaryOp.getOperand());
@@ -364,21 +381,22 @@ public class IrGenerator {
 
     private String generateFunctionCall(FunctionCallNode call) {
         String funcName = call.getFunctionName();
-        String result = newTemp();
-        
-        // Construir lista de argumentos
-        StringBuilder argsBuilder = new StringBuilder();
-        if (call.getArguments() != null && !call.getArguments().isEmpty()) {
+
+        StringBuilder args = new StringBuilder();
+        if (call.getArguments() != null) {
             for (ExpressionNode arg : call.getArguments()) {
-                String argTemp = generateExpression(arg);
-                argsBuilder.append(argTemp).append(" ");
-                freeTemp(argTemp);
+                String temp = generateExpression(arg);
+                args.append(temp).append(" ");
+                freeTemp(temp);
             }
         }
-        
-        irCode.add(result + " = CALL " + funcName + " " + argsBuilder.toString().trim());
+
+        // Asumimos que solo las funciones no-void se usan en expresiones
+        String result = newTemp();
+        irCode.add(result + " = CALL " + funcName + " " + args.toString().trim());
         return result;
     }
+
 
     private String generateBoolean(BooleanNode booleanNode) {
         String temp = newTemp();
@@ -410,7 +428,7 @@ public class IrGenerator {
     }
 
     private void freeTemp(String temp) {
-
+        tempMap.remove(temp);
     }
 
     private String newLabel() {
@@ -418,21 +436,49 @@ public class IrGenerator {
     }
 
     private String convertOperator(String operator) {
-        switch (operator) {
-            case "&&": return "AND";
-            case "||": return "OR";
-            case "==": return "EQ";
-            case "!=": return "NE";
-            case "<": return "LT";
-            case ">": return "GT";
-            case "<=": return "LE";
-            case ">=": return "GE";
-            case "+": return "ADD";
-            case "-": return "SUB";
-            case "*": return "MUL";
-            case "/": return "DIV";
-            case "%": return "MOD";
-            default: return operator;
-        }
+    switch (operator) {
+        case "&&": return "AND";
+        case "||": return "OR";
+        case "==": return "EQ";
+        case "!=": return "NE";
+        case "<": return "LT";
+        case ">": return "GT";
+        case "<=": return "LE";
+        case ">=": return "GE";
+        case "+": return "+";
+        case "-": return "-";
+        case "*": return "*";
+        case "/": return "/";
+        case "%": return "%";
+        default: return operator;
     }
+}
+
+    private String generateArrayAccess(ArrayAccessNode arrayAccess) {
+        // Generar el arreglo base (normalmente un identificador)
+        ExpressionNode arrayExpr = arrayAccess.getArray();
+        String arrayName;
+
+        if (arrayExpr instanceof IdentifierNode) {
+            arrayName = ((IdentifierNode) arrayExpr).getName();
+        } else if (arrayExpr instanceof VariableNode) {
+            arrayName = ((VariableNode) arrayExpr).getName();
+        } else {
+            // Caso raro, pero defendible
+            String tempArray = generateExpression(arrayExpr);
+            arrayName = tempArray;
+        }
+
+        // MiniC: solo una dimensión
+        ExpressionNode indexExpr = arrayAccess.getIndices().get(0);
+        String indexTemp = generateExpression(indexExpr);
+
+        String result = newTemp();
+        irCode.add(result + " = " + arrayName + "[" + indexTemp + "]");
+
+        freeTemp(indexTemp);
+        return result;
+    }
+
+
 }

@@ -1,14 +1,27 @@
 package org.minic;
 
-import java.io.*;
 import java.nio.file.*;
 import java.util.*;
+
 import org.antlr.v4.runtime.*;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.minic.ast.AstBuilder;
 import org.minic.ast.AstNode;
 
 public class MiniCCompiler {
-    
+
+    private static boolean generateMips = false;
+    private static boolean dumpTree = false;
+
+    private static final String[] SEARCH_PATHS = {
+        "",
+        "tests/examples/good/",
+        "tests/examples/bad/",
+        "tests/examples/",
+        "examples/good/",
+        "examples/bad/",
+        "examples/"
+    };
     public static void main(String[] args) {
         if (args.length == 0) {
             showHelp();
@@ -20,16 +33,22 @@ public class MiniCCompiler {
             boolean optimize = false;
             String outputFile = null;
             String inputFile = null;
-            
-            for (int i = 0; i < args.length; i++) {
-                if (args[i].equals("--help")) {
+
+            for (String arg : args) {
+                if (arg.equals("--help")) {
                     showHelp();
                     return;
                 }
             }
-            
+
             for (int i = 0; i < args.length; i++) {
                 switch (args[i]) {
+                    case "--dump-tree":
+                        dumpTree = true;
+                        break;
+                    case "-S":
+                        generateMips = true;
+                        break;
                     case "--dump-ir":
                         dumpIr = true;
                         break;
@@ -50,18 +69,27 @@ public class MiniCCompiler {
                     default:
                         if (!args[i].startsWith("-") && inputFile == null) {
                             inputFile = args[i];
+                            if (!inputFile.endsWith(".mc")) {
+                                inputFile += ".mc";
+                            }
                         }
                         break;
                 }
             }
-            
-            if (inputFile != null) {
-                compileTestFile(inputFile, dumpIr, optimize, outputFile);
-            } else {
+
+            if (inputFile == null) {
                 System.err.println("Error: No se especificó archivo de entrada");
                 System.exit(1);
             }
-            
+
+            String foundFile = findFile(inputFile);
+            if (foundFile == null) {
+                System.err.println("Error: No se pudo encontrar el archivo '" + inputFile + "'");
+                System.exit(1);
+            }
+
+            compileTestFile(foundFile, dumpIr, optimize, outputFile);
+
         } catch (Exception e) {
             System.err.println("Error durante la compilación: " + e.getMessage());
             e.printStackTrace();
@@ -69,145 +97,114 @@ public class MiniCCompiler {
         }
     }
 
-    private static void showHelp() {
-        System.out.println("Uso: minic <archivo.mc> [opciones]");
-        System.out.println("   o: minic --test <lista_pruebas.txt>");
-        System.out.println();
-        System.out.println("Opciones:");
-        System.out.println("  -S              Generar código MIPS (.s)");
-        System.out.println("  -o <archivo>    Especificar archivo de salida");
-        System.out.println("  --dump-ir       Mostrar código intermedio");
-        System.out.println("  --test <lista>  Ejecutar suite de pruebas");
-        System.out.println("  -O              Habilitar optimizaciones");
-        System.out.println("  --help          Mostrar esta ayuda");
-        System.out.println();
-        System.out.println("Ejemplos:");
-        System.out.println("  minic programa.mc");
-        System.out.println("  minic programa.mc --dump-ir -O -o salida.s");
-        System.out.println("  minic --test pruebas.txt");
-    }
+    public static void compileTestFile(String testFile,
+                                       boolean dumpIr,
+                                       boolean optimize,
+                                       String outputFile) throws Exception {
 
-    public static void runTestSuite(String testListFile) throws Exception {
-        System.out.println("========================================");
-        System.out.println("   EJECUTANDO SUITE DE PRUEBAS");
-        System.out.println("========================================");
-        
-        if (!Files.exists(Paths.get(testListFile))) {
-            throw new FileNotFoundException("Archivo de lista de pruebas no encontrado: " + testListFile);
-        }
+        System.out.println("Compilando archivo: " + testFile);
 
-        List<String> testFiles = Files.readAllLines(Paths.get(testListFile));
-        int successCount = 0;
-        int totalCount = 0;
+        Path filePath = Paths.get(testFile);
+        CharStream input = CharStreams.fromPath(filePath);
 
-        for (String testFile : testFiles) {
-            testFile = testFile.trim();
-            if (testFile.isEmpty() || testFile.startsWith("#")) {
-                continue;
-            }
+        ErrorManager.cleanErrors();
 
-            totalCount++;
-            System.out.println("\n" + "=" .repeat(50));
-            System.out.println("PRUEBA " + totalCount + ": " + testFile);
-            System.out.println("=" .repeat(50));
-
-            try {
-                compileTestFile(testFile);
-                System.out.println(testFile + " - COMPILACIÓN EXITOSA");
-                successCount++;
-            } catch (Exception e) {
-                System.out.println(testFile + " - ERROR: " + e.getMessage());
-            }
-        }
-
-        System.out.println("\n" + "=" .repeat(50));
-        System.out.println("RESUMEN DE PRUEBAS:");
-        System.out.println("Archivos probados: " + totalCount);
-        System.out.println("Exitosos: " + successCount);
-        System.out.println("Fallidos: " + (totalCount - successCount));
-        System.out.println("=" .repeat(50));
-    }
-
-    public static void compileTestFile(String testFile, boolean dumpIr, boolean optimize, String outputFile) throws Exception {
-        if (!Files.exists(Paths.get(testFile))) {
-            throw new FileNotFoundException("Archivo no encontrado: " + testFile);
-        }
-
-        System.out.println("Leyendo archivo: " + testFile);
-        CharStream input = CharStreams.fromFileName(testFile);
-
-        try {
-            ErrorManager.cleanErrors();
-            
-            System.out.println("Análisis léxico...");
-            MiniCLexer lexer = new MiniCLexer(input);
-            CommonTokenStream tokens = new CommonTokenStream(lexer);
-
-            System.out.println("Análisis sintáctico...");
-            MiniCParser parser = new MiniCParser(tokens);
-
-            parser.removeErrorListeners();
-            parser.addErrorListener(new BaseErrorListener() {
-                @Override
-                public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, 
-                                    int line, int charPositionInLine, String msg, RecognitionException e) {
-                    ErrorManager.addError(line, charPositionInLine + 1, msg);
-                }
-            });
-
-            MiniCParser.ProgramContext tree = parser.program();
-            
-            if (ErrorManager.hasErrors()) {
-                ErrorManager.throwIfErrors();
-            }
-            
-            System.out.println("Construyendo AST...");
-            AstBuilder astBuilder = new AstBuilder();
-            AstNode ast = astBuilder.build(tree);
-
-            Compiler.compile(ast, testFile, dumpIr, optimize, outputFile);
-            
-            System.out.println("Proceso de compilación completado para: " + testFile);
-            
-        } catch (CompilationException e) {
-            // Si no se mostraron errores aún, mostrarlos
-            if (!e.getMessage().contains("Línea")) {
-                ErrorManager.printErrors();
-            }
-            throw e;
-        } finally {
-            ErrorManager.cleanErrors();
-        }
-    }
-
-    public static void compileFromString(String sourceCode, String fileName) throws Exception {
-        System.out.println("Compilando código desde string...");
-        CharStream input = CharStreams.fromString(sourceCode);
-
+        System.out.println("Análisis léxico...");
         MiniCLexer lexer = new MiniCLexer(input);
         CommonTokenStream tokens = new CommonTokenStream(lexer);
-        MiniCParser parser = new MiniCParser(tokens); 
+
+        System.out.println("Análisis sintáctico...");
+        MiniCParser parser = new MiniCParser(tokens);
 
         parser.removeErrorListeners();
         parser.addErrorListener(new BaseErrorListener() {
             @Override
-            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, 
-                                  int line, int charPositionInLine, String msg, RecognitionException e) {
-                String errorMsg = String.format("Error de sintaxis en línea %d, posición %d: %s", 
-                                              line, charPositionInLine, msg);
-                throw new CompilationException(errorMsg, e);
+            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
+                                    int line, int charPositionInLine, String msg,
+                                    RecognitionException e) {
+                ErrorManager.addError(line, charPositionInLine + 1, msg);
             }
         });
 
-        MiniCParser.ProgramContext tree = parser.program(); 
+        ParseTree tree = parser.program();
+
+        if (ErrorManager.hasErrors()) {
+            ErrorManager.throwIfErrors();
+        }
+
+        System.out.println("Construyendo AST...");
         AstBuilder astBuilder = new AstBuilder();
         AstNode ast = astBuilder.build(tree);
 
-        Compiler.compile(ast, fileName);
+        Compiler.compile(
+                ast,
+                tree,
+                parser,
+                testFile,
+                generateMips,
+                dumpIr,
+                optimize,
+                outputFile
+        );
+
+        if (dumpTree) {
+            TreePrinter.printToConsole(tree, parser);
+            TreePrinter.printStats(tree, parser);
+        }
+
+        System.out.println("Compilación completada para: " + testFile);
     }
 
     public static void compileTestFile(String testFile) throws Exception {
         compileTestFile(testFile, false, false, null);
     }
-    
+
+    private static String findFile(String fileName) {
+        for (String path : SEARCH_PATHS) {
+            Path file = Paths.get(path + fileName);
+            if (Files.exists(file) && Files.isRegularFile(file)) {
+                return file.toString();
+            }
+        }
+        return null;
+    }
+
+    private static void showHelp() {
+        System.out.println("MiniC Compiler");
+        System.out.println("=================================================");
+        System.out.println();
+        System.out.println("Uso:");
+        System.out.println("  run.bat <archivo.mc> [opciones]");
+        System.out.println();
+        System.out.println("Opciones:");
+        System.out.println("  -S               Generar código ensamblador MIPS (.s)");
+        System.out.println("  -o <archivo>     Especificar archivo de salida");
+        System.out.println("  --dump-tree      Mostrar árbol de parse (ANTLR)");
+        System.out.println("  --dump-ir        Mostrar código intermedio (IR)");
+        System.out.println("  -O               Habilitar optimizaciones");
+        System.out.println("  --test <lista>   Ejecutar suite de pruebas");
+        System.out.println("  --help           Mostrar esta ayuda");
+        System.out.println();
+        System.out.println("Ejemplos:");
+        System.out.println("  run.bat good1.mc");
+        System.out.println("  run.bat good1.mc -O");
+        System.out.println("  run.bat good1.mc --dump-tree --dump-ir");
+        System.out.println("  run.bat good1.mc --dump-tree");
+        System.out.println("  run.bat good1.mc --dump-ir -O");
+        System.out.println("  run.bat good1.mc --dump-ir -S");
+        System.out.println("  run.bat good1.mc -S -o good1.s");
+        System.out.println("  run.bat good1.mc --dump-tree -S");
+        System.out.println("  run.bat good1.mc --dump-tree --dump-ir -O");
+        System.out.println("  run.bat good1.mc --dump-tree --dump-ir -S -O");
+        System.out.println("  run.bat good1.mc --dump-tree --dump-ir -S -O -o good1.s");
+    }
+
+    public static void runTestSuite(String testListFile) throws Exception {
+        List<String> tests = Files.readAllLines(Paths.get(findFile(testListFile)));
+        for (String test : tests) {
+            if (!test.trim().isEmpty() && !test.startsWith("#")) {
+                compileTestFile(test.trim());
+            }
+        }
+    }
 }

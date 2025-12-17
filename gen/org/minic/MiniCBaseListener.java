@@ -67,6 +67,18 @@ public class MiniCBaseListener implements MiniCListener {
 	 *
 	 * <p>The default implementation does nothing.</p>
 	 */
+	@Override public void enterArrayDimensions(MiniCParser.ArrayDimensionsContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
+	@Override public void exitArrayDimensions(MiniCParser.ArrayDimensionsContext ctx) { }
+	/**
+	 * {@inheritDoc}
+	 *
+	 * <p>The default implementation does nothing.</p>
+	 */
 	@Override public void enterTypeSpecifier(MiniCParser.TypeSpecifierContext ctx) { }
 	/**
 	 * {@inheritDoc}

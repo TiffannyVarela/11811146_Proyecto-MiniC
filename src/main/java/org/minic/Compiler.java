@@ -5,252 +5,202 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+import org.antlr.v4.runtime.Parser;
+import org.antlr.v4.runtime.tree.ParseTree;
 import org.minic.ast.*;
 import org.minic.backend.mips.MipsGenerator;
 import org.minic.ir.IrGenerator;
-import org.minic.optimizer.ConstantFolder;
+import org.minic.optimizer.*;
 import org.minic.semantic.SemanticChecker;
 
 public class Compiler {
-    public static void compile(AstNode ast, String sourceFile, boolean dumpIr, boolean optimize, String outputFile) {
+
+    private static final String ANSI_RESET = "\u001B[0m";
+    private static final String ANSI_RED = "\u001B[31m";
+    private static final String ANSI_GREEN = "\u001B[32m";
+
+    public static void compile(AstNode ast,
+                               ParseTree parseTree,
+                               Parser parser,
+                               String sourceFile,
+                               boolean generateMips,
+                               boolean dumpIr,
+                               boolean optimize,
+                               String outputFile) {
+
+        compileInternal(ast, parseTree, parser,
+                sourceFile, generateMips, dumpIr, optimize, outputFile);
+    }
+
+    public static void compile(AstNode ast,
+                               ParseTree parseTree,
+                               Parser parser,
+                               String sourceFile) {
+
+        compileInternal(ast, parseTree, parser,
+                sourceFile, true, false, false, null);
+    }
+
+    public static void compileFromString(String sourceCode, String fileName) {
         try {
             ErrorManager.cleanErrors();
-            System.out.println("\n--- Análisis Semántico ---");
-            SemanticChecker semanticChecker = new SemanticChecker();
-            semanticChecker.check(ast);
+
+            System.out.println("\nCompilando desde cadena de código...");
+
+            String baseName = (fileName != null && !fileName.isEmpty())
+                    ? fileName.replace(".mc", "")
+                    : "string_code_" + System.currentTimeMillis();
+
+            Path outputDir = Paths.get("tests/output").resolve(baseName);
+            Files.createDirectories(outputDir);
+
+            org.antlr.v4.runtime.CharStream input =
+                    org.antlr.v4.runtime.CharStreams.fromString(sourceCode, fileName);
+            org.minic.MiniCLexer lexer = new org.minic.MiniCLexer(input);
+            org.antlr.v4.runtime.CommonTokenStream tokens =
+                    new org.antlr.v4.runtime.CommonTokenStream(lexer);
+
+            org.minic.MiniCParser parser = new org.minic.MiniCParser(tokens);
+            ParseTree tree = parser.program();
 
             if (ErrorManager.hasErrors()) {
                 ErrorManager.throwIfErrors();
             }
 
-            System.out.println("Análisis semántico completado");
+            TreePrinter.saveToFile(
+                    tree,
+                    parser,
+                    outputDir.resolve(baseName + ".tree").toString()
+            );
+
+            AstBuilder astBuilder = new AstBuilder();
+            AstNode ast = astBuilder.build(tree);
+
+            compileInternal(ast, tree, parser,
+                    baseName + ".mc", true, false, false, null);
+
+        } catch (Exception e) {
+            throw new CompilationException("Error compilando desde string", e);
+        }
+    }
+
+    private static void compileInternal(AstNode ast,
+                                    ParseTree parseTree,
+                                    Parser parser,
+                                    String sourceFile,
+                                    boolean generateMips,
+                                    boolean dumpIr,
+                                    boolean optimize,
+                                    String outputFile) {
+
+    try {
+        ErrorManager.cleanErrors();
+
+        Path sourcePath = Paths.get(sourceFile);
+        String baseName = sourcePath.getFileName().toString().replace(".mc", "");
+
+        Path outputDir = Paths.get("tests/output").resolve(baseName);
+        Files.createDirectories(outputDir);
+
+        TreePrinter.saveToFile(
+                parseTree,
+                parser,
+                outputDir.resolve(baseName + ".tree").toString()
+        );
+
+        SemanticChecker checker = new SemanticChecker();
+        checker.check(ast);
+
+        if (ErrorManager.hasErrors()) {
+            ErrorManager.throwIfErrors();
+        }
+        IrGenerator irGenOriginal = new IrGenerator();
+        List<String> irOriginal = irGenOriginal.generate(ast);
+        
+        // DEBUG: Mostrar el IR original
+        System.out.println("=== IR ORIGINAL (REAL) ===");
+        for (String line : irOriginal) {
+            System.out.println(line);
+        }
+        
+        // Guardar el IR ORIGINAL SIEMPRE
+        Files.write(
+            outputDir.resolve(baseName + ".ir"),
+            irOriginal
+        );
+
+        // Ahora procesamos optimizaciones si están habilitadas
+        AstNode processedAst = ast;
+        List<String> irProcessed = irOriginal;
+
+        if (optimize) {
+            System.out.println("=== INICIANDO OPTIMIZACIÓN ===");
             
-            AstNode processedAst = ast;
-            List<String> irBeforeOptimization = null;
-            List<String> irAfterOptimization = null;
+            // DEBUG
+            System.out.println("HashCode del AST antes de optimizar: " + System.identityHashCode(ast));
 
-            //Obtener nombre base del archivo
-            Path sourcePath = Paths.get(sourceFile);
-            String sourceName = sourcePath.getFileName().toString();
-            String baseName = sourceName.replace(".mc", "");
+            processedAst = ConstantFolder.optimize(ast);
+            
+            // DEBUG
+            System.out.println("HashCode del AST después de optimizar: " + System.identityHashCode(processedAst));
+            System.out.println("¿Son el mismo objeto? " + (ast == processedAst));
 
-            //Ruta base de archivos generados
-            Path baseOutputDir = Paths.get("tests/output");
-            Path programOutputDir = baseOutputDir.resolve(baseName);
-
-            //Generar IR sin optimizar
-            System.out.println("\n--- CODIGO IR SIN OPTIMIZAR ---");
-            IrGenerator irGenerator = new IrGenerator();
-            List<String> irNoOpt = irGenerator.generate(ast);
-
-            //Guardar IR sin optimizar
-            writeIrToFile(irNoOpt, programOutputDir, baseName, "");
-            System.out.println("Codigo IR sin optimizar guardado en: " + programOutputDir.resolve(baseName + ".ir"));
-
-            if (dumpIr && optimize) {
-                System.out.println("\n--- CÓDIGO IR (ANTES de optimización) ---");
-                irBeforeOptimization = irNoOpt;//Generado antes
-                printIrSideBySide(irBeforeOptimization, null, "ANTES");
+            // Generar IR del AST optimizado
+            IrGenerator irGenOptimized = new IrGenerator();
+            irProcessed = irGenOptimized.generate(processedAst);
+            
+            // DEBUG: Mostrar el IR procesado
+            System.out.println("=== IR PROCESADO (OPTIMIZADO) ===");
+            for (String line : irProcessed) {
+                System.out.println(line);
             }
 
-            if (optimize) {
-                System.out.println("\n--- Optimización ---");
-                processedAst = ConstantFolder.optimize(ast);
-                System.out.println("Optimización de constantes completada");
-
-                //Generar IR optimizado
-                System.out.println("\n--- Generando Codigo IR Optimizado ---");
-                IrGenerator irGeneratorOp = new IrGenerator();
-                irAfterOptimization = irGeneratorOp.generate(processedAst);
-
-                //Guardar IR optimizado
-                writeIrToFile(irAfterOptimization, programOutputDir, baseName, "_opt");
-                System.out.println("Codigo IR optimizado guardado en: " + programOutputDir.resolve(baseName + "_opt.ir"));
+            // Guardar el IR OPTIMIZADO solo si se pide dumpIr
+            if (dumpIr) {
+                Files.write(
+                    outputDir.resolve(baseName + "_opt.ir"),
+                    irProcessed
+                );
                 
-                if (dumpIr && optimize) {
-                    System.out.println("\n--- CÓDIGO IR (DESPUÉS de optimización) ---");
-
-                    if (irBeforeOptimization != null) {
-                        printIrSideBySide(irBeforeOptimization, irAfterOptimization, "COMPARACIÓN");
-                    } else {
-                        printIrSideBySide(null, irAfterOptimization, "DESPUÉS");
-                    }
-                }
+                // Mostrar comparación
+                printIrComparison(irOriginal, irProcessed);
             }
 
-            if (dumpIr && !optimize) {
-                System.out.println("\n--- GENERACIÓN DE CÓDIGO INTERMEDIO ---");
-                printIrSideBySide(irNoOpt, null, "IR SIN OPTIMIZAR");
-            }
+            System.out.println("=== FIN OPTIMIZACIÓN ===");
+        }
 
-            System.out.println("\n--- Generación de Código MIPS ---");
+        // Generar MIPS desde el AST procesado
+        if (generateMips) {
             MipsGenerator mipsGenerator = new MipsGenerator();
             String mipsCode = mipsGenerator.generate(processedAst);
 
-            //Determinar nombre del .s
-            String sFileName;
-            if (outputFile != null) {
-                Path outputPath = Paths.get(outputFile);
-                sFileName = outputPath.getFileName().toString();
-            } else {
-                sFileName = baseName + ".s";
-            }
-            writeToFile(mipsCode, programOutputDir, sFileName);
-
-            printAstInfo(processedAst);
-            
-        } catch (CompilationException e) {
-            throw e;
-        } catch (Exception e) {
-            System.err.println("Error durante la compilación: " + e.getMessage());
-            e.printStackTrace();
-            throw new CompilationException("Error durante la compilación: " + e.getMessage(), e);
+            Files.write(
+                    outputDir.resolve(baseName + ".s"),
+                    mipsCode.getBytes()
+            );
         }
-    }
 
-    private static void printIrSideBySide(List<String> irBefore, List<String> irAfter, String title) {
-        System.out.println("\n" + "=".repeat(80));
-        System.out.println("  " + title + " - CÓDIGO INTERMEDIO");
-        System.out.println("=".repeat(80));
-        
-        if (irBefore == null && irAfter == null) {
-            System.out.println("No hay código IR para mostrar");
-            return;
-        }
-        
-        if (irBefore != null && irAfter != null) {
-            // Mostrar comparación lado a lado
-            System.out.printf("%-40s | %-40s\n", "ANTES de optimización", "DESPUÉS de optimización");
-            System.out.println("-".repeat(80));
-            
-            int maxLines = Math.max(irBefore.size(), irAfter.size());
-            for (int i = 0; i < maxLines; i++) {
-                String beforeLine = i < irBefore.size() ? irBefore.get(i) : "";
-                String afterLine = i < irAfter.size() ? irAfter.get(i) : "";
-                
-                // Resaltar diferencias
-                if (!beforeLine.equals(afterLine)) {
-                    System.out.printf("\u001B[31m%-40s\u001B[0m | \u001B[32m%-40s\u001B[0m\n", 
-                        truncate(beforeLine, 38), truncate(afterLine, 38));
-                } else {
-                    System.out.printf("%-40s | %-40s\n", 
-                        truncate(beforeLine, 38), truncate(afterLine, 38));
-                }
-            }
-            
-            // Estadísticas
-            System.out.println("\n" + "-".repeat(80));
-            System.out.println("ESTADÍSTICAS DE OPTIMIZACIÓN:");
-            System.out.println("  • Líneas antes: " + irBefore.size());
-            System.out.println("  • Líneas después: " + irAfter.size());
-            System.out.println("  • Líneas eliminadas: " + (irBefore.size() - irAfter.size()));
-            System.out.println("  • Tasa de compresión: " + 
-                String.format("%.1f%%", (1 - (double)irAfter.size()/irBefore.size()) * 100));
-            
-        } else if (irBefore != null) {
-            // Solo mostrar "antes"
-            System.out.println("Código IR (sin optimización):");
-            System.out.println("-".repeat(80));
-            for (String line : irBefore) {
-                System.out.println("  " + line);
-            }
-        } else if (irAfter != null) {
-            // Solo mostrar "después"
-            System.out.println("Código IR (con optimización):");
-            System.out.println("-".repeat(80));
-            for (String line : irAfter) {
-                System.out.println("  " + line);
-            }
-        }
-        
-        System.out.println("=".repeat(80));
-    }
+        System.out.println("✔ Compilación finalizada correctamente");
 
-    private static String truncate(String str, int length) {
-        if (str.length() <= length) return str;
-        return str.substring(0, length - 3) + "...";
+    } catch (Exception e) {
+        throw new CompilationException("Error durante compilación", e);
     }
+}
 
-    public static void compile(AstNode ast, String sourceFile) {
-        compile(ast, sourceFile, false, false, null);
-    }
-    
-    private static void printAstInfo(AstNode ast) {
-        if (ast instanceof ProgramNode) {
-            ProgramNode programNode = (ProgramNode) ast;
-            System.out.println("\n--- INFORMACIÓN DEL PROGRAMA ---");
-            System.out.println("Número de declaraciones: " + programNode.getDeclarationsNodes().size());
-            
-            int functionCount = 0;
-            int globalVarCount = 0;
-            
-            for (AstNode decl : programNode.getDeclarationsNodes()) {
-                if (decl instanceof FunctionNode) {
-                    FunctionNode funcNode = (FunctionNode) decl;
-                    String paramsInfo = funcNode.getParameters() != null ? 
-                                       String.valueOf(funcNode.getParameters().size()) : "0";
-                    System.out.println("Función: " + funcNode.getName() + 
-                                     " -> " + funcNode.getReturnType() + 
-                                     " (parámetros: " + paramsInfo + ")");
-                    functionCount++;
-                } else if (decl instanceof VarDeclNode) {
-                    VarDeclNode varNode = (VarDeclNode) decl;
-                    String arrayInfo = varNode.isArray() ? 
-                                     "[tamaño: " + varNode.getArraySize() + "]" : "";
-                    System.out.println("Variable: " + varNode.getName() + 
-                                     " - tipo: " + varNode.getType() + " " + arrayInfo);
-                    globalVarCount++;
-                }
-            }
-            
-            System.out.println("\n--- RESUMEN ---");
-            System.out.println("- Funciones: " + functionCount);
-            System.out.println("- Variables globales: " + globalVarCount);
-            System.out.println("- Total de declaraciones: " + (functionCount + globalVarCount));
-        }
-    }
 
-    private static void writeToFile(String content, Path outputDir, String fileName) {
-        try {            
-            // Crear carpeta tests/output si no existe
-            if (!Files.exists(outputDir)) {
-                Files.createDirectories(outputDir);
-            }
-            
-            // Mantener el mismo nombre del archivo
-            Path outputPath = outputDir.resolve(fileName);
-            
-            Files.write(outputPath, content.getBytes());
-            System.out.println("Archivo guardado: " + outputPath);
-            
-            long fileSize = Files.size(outputPath);
-            System.out.println("Tamaño del archivo: " + fileSize + " bytes");
-            
-        } catch (Exception e) {
-            throw new RuntimeException("Error al escribir el archivo: " + e.getMessage());
-        }
-    }
+    private static void printIrComparison(List<String> irBefore, List<String> irAfter) {
+        System.out.println("========================================");
+        System.out.println("Antes de la optimización                 | Después de la optimización");
+        System.out.println("========================================");
 
-    private static void writeIrToFile(List<String> irCode, Path outputDir, String baseName, String sufijo) {
-        try {
-            // Crear carpeta tests/output si no existe
-            if (!Files.exists(outputDir)) {
-                Files.createDirectories(outputDir);
-            }
-            
-            // Crear nombre de archivo
-            String fileName = baseName + sufijo + ".ir";
-            Path outputPath = outputDir.resolve(fileName);
-            
-            String content = String.join("\n", irCode);
-            Files.write(outputPath, content.getBytes());
-            System.out.println("Archivo IR guardado: " + outputPath);
-            
-            long fileSize = Files.size(outputPath);
-            System.out.println("Tamaño del archivo IR: " + fileSize + " bytes");
-            
-        } catch (Exception e) {
-            throw new RuntimeException("Error al escribir el archivo IR: " +  e.getMessage());
+        int maxLines = Math.max(irBefore.size(), irAfter.size());
+        for (int i = 0; i < maxLines; i++) {
+            String left = i < irBefore.size() ? irBefore.get(i) : "";
+            String right = i < irAfter.size() ? irAfter.get(i) : "";
+            System.out.printf("%s%-40s%s | %s%-40s%s%n",
+                    ANSI_RED, left, ANSI_RESET,
+                    ANSI_GREEN, right, ANSI_RESET);
         }
+        System.out.println("========================================");
     }
 }

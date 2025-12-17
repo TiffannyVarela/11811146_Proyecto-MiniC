@@ -29,4 +29,5 @@ public abstract class AstNode {
     public void setColumn(int column) {
         this.column = column;
     }
+
 }

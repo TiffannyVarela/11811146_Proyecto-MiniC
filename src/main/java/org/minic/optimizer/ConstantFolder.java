@@ -1,225 +1,205 @@
 package org.minic.optimizer;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.minic.ast.*;
 
 public class ConstantFolder {
     
+    private static final Map<String, Integer> constants = new HashMap<>();
+
     public static AstNode optimize(AstNode ast) {
-        System.out.println("=== INICIANDO OPTIMIZACIÓN DE CONSTANTES ===");
-        if (ast instanceof ProgramNode) {
-            return optimizeProgram((ProgramNode) ast);
-        }
-        System.out.println("=== FIN OPTIMIZACIÓN ===");
-        return ast;
+    System.out.println("=== INICIANDO CONSTANT FOLDING ===");
+    System.out.println("HashCode del AST recibido: " + System.identityHashCode(ast));
+    constants.clear();
+
+    if (ast instanceof ProgramNode program) {
+        AstNode result = optimizeProgram(program);
+        System.out.println("HashCode del AST retornado: " + System.identityHashCode(result));
+        System.out.println("¿Mismo objeto? " + (ast == result));
+        System.out.println("=== FIN CONSTANT FOLDING ===");
+        return result;
     }
-    
+
+    return ast;
+}
+
     private static ProgramNode optimizeProgram(ProgramNode program) {
-        System.out.println("Optimizando programa con " + program.getDeclarationsNodes().size() + " declaraciones");
         ProgramNode optimized = new ProgramNode();
+
         for (AstNode decl : program.getDeclarationsNodes()) {
-            System.out.println("  Declaración: " + decl.getClass().getSimpleName());
-            if (decl instanceof FunctionNode) {
-                System.out.println("  Es FunctionNode: " + ((FunctionNode) decl).getName());
-                optimized.addDeclarationNode((DeclarationNode) optimizeFunction((FunctionNode) decl));
-            } else if (decl instanceof DeclarationNode) {
-                optimized.addDeclarationNode((DeclarationNode) decl);
+            if (decl instanceof FunctionNode fn) {
+                optimized.addDeclarationNode(optimizeFunction(fn));
+            } else if (decl instanceof DeclarationNode dn) {
+                optimized.addDeclarationNode(dn);
             }
         }
-        
+
         return optimized;
     }
-    
+
     private static FunctionNode optimizeFunction(FunctionNode function) {
+        constants.clear(); // nuevo scope
+
         BlockNode optimizedBody = optimizeBlock(function.getBody());
+
         return new FunctionNode(
-            function.getReturnType(),
-            function.getName(),
-            function.getParameters(),
-            optimizedBody
+                function.getReturnType(),
+                function.getName(),
+                function.getParameters(),
+                optimizedBody
         );
     }
     
     private static BlockNode optimizeBlock(BlockNode block) {
-        if (block == null) {
-            System.out.println("optimizeBlock: block es null!");
-            return null;
-        }
-        
-        System.out.println("optimizeBlock INICIO: procesando bloque con " + block.getStatements().size() + " statements");
-        
+        if (block == null) return null;
+
         BlockNode optimized = new BlockNode();
-        for (int i = 0; i < block.getStatements().size(); i++) {
-            StatementNode stmt = block.getStatements().get(i);
-            System.out.println("  Procesando statement " + i + ": " + stmt.getClass().getSimpleName());
-            
-            // Agrega logging ANTES de llamar a optimizeStatement
-            System.out.println("  Llamando a optimizeStatement...");
-            StatementNode optimizedStmt = optimizeStatement(stmt);
-            System.out.println("  optimizeStatement retornó: " + optimizedStmt.getClass().getSimpleName());
-            
-            optimized.getStatements().add(optimizedStmt);
+
+        for (StatementNode stmt : block.getStatements()) {
+            optimized.getStatements().add(optimizeStatement(stmt));
         }
-        
-        System.out.println("optimizeBlock FIN: bloque optimizado tiene " + optimized.getStatements().size() + " statements");
+
         return optimized;
     }
-    
+
     private static StatementNode optimizeStatement(StatementNode stmt) {
-        System.out.println("optimizeStatement INICIO: " + stmt.getClass().getSimpleName());
-        
-        if (stmt instanceof ExpressionStatementNode) {
-            ExpressionStatementNode exprStmt = (ExpressionStatementNode) stmt;
-            System.out.println("  Es ExpressionStatementNode");
-            ExpressionNode optimizedExpr = optimizeExpression(exprStmt.getExpressionNode());
+
+        if (stmt instanceof ExpressionStatementNode exprStmt) {
+            ExpressionNode optimizedExpr =
+                    optimizeExpression(exprStmt.getExpressionNode());
             return new ExpressionStatementNode(optimizedExpr);
-        } else if (stmt instanceof VarDeclStatementNode) {
-            System.out.println("  Es VarDeclStatementNode");
-            return optimizeVarDeclStatement((VarDeclStatementNode) stmt);
-        } else if (stmt instanceof ReturnNode) {
-            System.out.println("  Es ReturnNode");
-            return optimizeReturnStatement((ReturnNode) stmt);
-        } else if (stmt instanceof BlockNode) {
-            System.out.println("  Es BlockNode - llamando a optimizeBlock directamente");
-            // En lugar de llamar a optimizeBlock (que crea un ciclo), 
-            // procesa los statements directamente
-            BlockNode block = (BlockNode) stmt;
-            BlockNode optimizedBlock = new BlockNode();
-            for (StatementNode innerStmt : block.getStatements()) {
-                optimizedBlock.getStatements().add(optimizeStatement(innerStmt));
-            }
-            return optimizedBlock;
         }
-        
-        System.out.println("optimizeStatement: tipo no manejado: " + stmt.getClass().getSimpleName());
+
+        if (stmt instanceof VarDeclStatementNode varStmt) {
+            return optimizeVarDeclStatement(varStmt);
+        }
+
+        if (stmt instanceof ReturnNode ret) {
+            return optimizeReturn(ret);
+        }
+
+        if (stmt instanceof BlockNode block) {
+            return optimizeBlock(block);
+        }
+
         return stmt;
     }
 
-    private static VarDeclStatementNode optimizeVarDeclStatement(VarDeclStatementNode varDeclStmt) {
-        System.out.println("Optimizando VarDeclStatementNode: " + varDeclStmt.getVarDeclNode().getName());
-        
-        VarDeclNode varDecl = varDeclStmt.getVarDeclNode();
-        
-        if (varDecl.hasInitialNode()) {
-            System.out.println("  Tiene inicialización, optimizando...");
-            ExpressionNode optimizedInit = optimizeExpression(varDecl.getInitialNode());
-            System.out.println("  Inicialización original: " + varDecl.getInitialNode().getClass().getSimpleName());
-            System.out.println("  Inicialización optimizada: " + optimizedInit.getClass().getSimpleName());
-            
-            VarDeclNode optimizedVarDecl = new VarDeclNode(
-                varDecl.getType(),
-                varDecl.getName(),
-                varDecl.isArray(),
-                varDecl.getArraySize(),
-                optimizedInit
+    private static VarDeclStatementNode optimizeVarDeclStatement(
+            VarDeclStatementNode stmt) {
+
+        VarDeclNode var = stmt.getVarDeclNode();
+
+        if (var.hasInitialNode()) {
+            ExpressionNode optimizedInit =
+                    optimizeExpression(var.getInitialNode());
+
+            if (optimizedInit instanceof NumberNode num) {
+                constants.put(var.getName(), num.getValue());
+            } else {
+                constants.remove(var.getName());
+            }
+
+            VarDeclNode optimizedVar = new VarDeclNode(
+                    var.getType(),
+                    var.getName(),
+                    var.isArray(),
+                    var.getArraySize(),
+                    optimizedInit
             );
-            return new VarDeclStatementNode(optimizedVarDecl);
-        } else {
-            System.out.println("  No tiene inicialización");
+
+            return new VarDeclStatementNode(optimizedVar);
         }
-        
-        return varDeclStmt;
-    }
-    
-    private static ExpressionNode optimizeExpression(ExpressionNode expr) {
-        System.out.println("optimizeExpression: " + expr.getClass().getSimpleName());
-        
-        if (expr instanceof BinaryOpNode) {
-            return optimizeBinaryOp((BinaryOpNode) expr);
-        }
-        if (expr instanceof UnaryOpNode) {
-            return optimizeUnaryOp((UnaryOpNode) expr);
-        }
-        if (expr instanceof NumberNode) {
-            System.out.println("  Es NumberNode: " + ((NumberNode) expr).getValue());
-        }
-        
-        return expr;
-    }
-    
-    private static ExpressionNode optimizeBinaryOp(BinaryOpNode binOp) {
-        System.out.println("Optimizando binary op: " + binOp.getOperator() + 
-                         " left=" + binOp.getLeft().getClass().getSimpleName() + 
-                         " right=" + binOp.getRight().getClass().getSimpleName());
-        
-        ExpressionNode left = optimizeExpression(binOp.getLeft());
-        ExpressionNode right = optimizeExpression(binOp.getRight());
-        
-        if (left instanceof NumberNode && right instanceof NumberNode) {
-            int leftVal = ((NumberNode) left).getValue();
-            int rightVal = ((NumberNode) right).getValue();
-            String operator = binOp.getOperator();
-            
-            System.out.println("  ¡Puedo optimizar! " + leftVal + " " + operator + " " + rightVal);
-            
-            switch (operator) {
-                case "+": 
-                    int result = leftVal + rightVal;
-                    System.out.println("  Resultado: " + result);
-                    return new NumberNode(result);
-                case "-": 
-                    result = leftVal - rightVal;
-                    System.out.println("  Resultado: " + result);
-                    return new NumberNode(result);
-                case "*": 
-                    result = leftVal * rightVal;
-                    System.out.println("  Resultado: " + result);
-                    return new NumberNode(result);
-                case "/": 
-                    if (rightVal != 0) {
-                        result = leftVal / rightVal;
-                        System.out.println("  Resultado: " + result);
-                        return new NumberNode(result);
-                    }
-                    break;
-                case "%": 
-                    if (rightVal != 0) {
-                        result = leftVal / rightVal;
-                        System.out.println("  Resultado: " + result);
-                        return new NumberNode(result);
-                    }
-                    break;
-                case "==": return new BooleanNode(leftVal == rightVal);
-                case "!=": return new BooleanNode(leftVal != rightVal);
-                case "<": return new BooleanNode(leftVal < rightVal);
-                case ">": return new BooleanNode(leftVal > rightVal);
-                case "<=": return new BooleanNode(leftVal <= rightVal);
-                case ">=": return new BooleanNode(leftVal >= rightVal);
-                case "&&": return new BooleanNode((leftVal != 0) && (rightVal != 0));
-                case "||": return new BooleanNode((leftVal != 0) || (rightVal != 0));
-            }
-        } else {
-            System.out.println("  No puedo optimizar (no son ambos NumberNode)");
-        }
-        
-        return new BinaryOpNode(binOp.getOperator(), left, right);
-    }
-    
-    private static ExpressionNode optimizeUnaryOp(UnaryOpNode unaryOp) {
-        ExpressionNode operand = optimizeExpression(unaryOp.getOperand());
-        
-        if (operand instanceof NumberNode) {
-            int value = ((NumberNode) operand).getValue();
-            String operator = unaryOp.getOperator();
-            
-            switch (operator) {
-                case "-": return new NumberNode(-value);
-                case "!": return new BooleanNode(value == 0);
-            }
-        }
-        
-        return new UnaryOpNode(unaryOp.getOperator(), operand);
+
+        constants.remove(var.getName());
+        return stmt;
     }
 
-    private static StatementNode optimizeReturnStatement(ReturnNode returnStmt) {
-        System.out.println("optimizeReturnStatement: tiene return value? " + (returnStmt.getReturnValue() != null));
-        
-        if (returnStmt.getReturnValue() != null) {
-            System.out.println("  Optimizando expresión de retorno...");
-            ExpressionNode optimizedReturn = optimizeExpression(returnStmt.getReturnValue());
-            System.out.println("  Expresión original: " + returnStmt.getReturnValue().getClass().getSimpleName());
-            System.out.println("  Expresión optimizada: " + optimizedReturn.getClass().getSimpleName());
-            return new ReturnNode(optimizedReturn);
+    private static ReturnNode optimizeReturn(ReturnNode ret) {
+        if (ret.getReturnValue() != null) {
+            ExpressionNode optimized =
+                    optimizeExpression(ret.getReturnValue());
+            return new ReturnNode(optimized);
         }
-        return returnStmt;
+        return ret;
+    }
+
+    private static ExpressionNode optimizeExpression(ExpressionNode expr) {
+
+        // PROPAGACIÓN
+        if (expr instanceof VariableNode var) {
+            if (constants.containsKey(var.getName())) {
+                return new NumberNode(constants.get(var.getName()));
+            }
+            return expr;
+        }
+
+        if (expr instanceof BinaryOpNode bin) {
+            return optimizeBinary(bin);
+        }
+
+        if (expr instanceof UnaryOpNode un) {
+            return optimizeUnary(un);
+        }
+
+        return expr;
+    }
+    private static ExpressionNode optimizeBinary(BinaryOpNode bin) {
+
+        ExpressionNode left = optimizeExpression(bin.getLeft());
+        ExpressionNode right = optimizeExpression(bin.getRight());
+
+        if (left instanceof NumberNode l && right instanceof NumberNode r) {
+            int a = l.getValue();
+            int b = r.getValue();
+
+            return switch (bin.getOperator()) {
+                case "+"  -> new NumberNode(a + b);
+                case "-"  -> new NumberNode(a - b);
+                case "*"  -> new NumberNode(a * b);
+                case "/"  -> (b != 0) ? new NumberNode(a / b) : bin;
+                case "%"  -> (b != 0) ? new NumberNode(a % b) : bin;
+
+                case "==" -> new BooleanNode(a == b);
+                case "!=" -> new BooleanNode(a != b);
+                case "<"  -> new BooleanNode(a < b);
+                case "<=" -> new BooleanNode(a <= b);
+                case ">"  -> new BooleanNode(a > b);
+                case ">=" -> new BooleanNode(a >= b);
+
+                case "&&" -> new BooleanNode(a != 0 && b != 0);
+                case "||" -> new BooleanNode(a != 0 || b != 0);
+
+                default -> bin;
+            };
+        }
+
+        if (left != bin.getLeft() || right != bin.getRight()) {
+            return new BinaryOpNode(bin.getOperator(), left, right);
+        }
+
+        return bin;
+    }
+    private static ExpressionNode optimizeUnary(UnaryOpNode un) {
+
+        ExpressionNode operand = optimizeExpression(un.getOperand());
+
+        if (operand instanceof NumberNode num) {
+            int v = num.getValue();
+
+            return switch (un.getOperator()) {
+                case "-" -> new NumberNode(-v);
+                case "!" -> new BooleanNode(v == 0);
+                default -> un;
+            };
+        }
+
+        if (operand != un.getOperand()) {
+            return new UnaryOpNode(un.getOperator(), operand);
+        }
+
+        return un;
     }
 }

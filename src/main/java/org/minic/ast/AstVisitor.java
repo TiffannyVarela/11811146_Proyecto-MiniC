@@ -1,4 +1,5 @@
 package org.minic.ast;
+
 public interface AstVisitor<T> {
 
     //Nodos de programa
@@ -37,5 +38,8 @@ public interface AstVisitor<T> {
     T visit (ParamNode node);
     T visit (StatementNode node);
     T visit (VarDeclStatementNode node);
-
+    T visit (CastNode node);
+    T visit (MemberAccessNode node);
+    T visit (ArrayAccessNode node);
+    T visit (ArrayDimensionsNode node);
 }

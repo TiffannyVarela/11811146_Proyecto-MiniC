@@ -31,29 +31,23 @@ echo Generando gramatica...
 java -cp "lib\antlr-4.13.2-complete.jar" org.antlr.v4.Tool -Dlanguage=Java -o gen grammar\MiniC.g4
 
 REM VERIFICACION Y AJUSTES DE LA ESTRUCTURA
-echo Verificando estructura generada...
 if exist gen\grammar (
-    echo Manejando archivos en gen\grammar\...
     
     REM VERIFICAR SI LOS ARCHIVOS ANTLS YA TIENEN 'package'
-    echo Buscando package declaration en archivos ANTLR...
     findstr "package" gen\grammar\*.java >nul
     if errorlevel 1 (
         echo No se encontro package - agregando package org.minic a archivos...
         REM AGREGAR package org.minic
         for %%f in (gen\grammar\*.java) do (
-            echo Modificando %%~nxf
             powershell -Command "(gc '%%f') -replace '^(@header {)', '$$1\npackage org.minic;' | Out-File -Encoding UTF8 '%%f'"
         )
     )
     REM MOVER ARCHIVOS GENERADOS A LA RUTA CORRECTA
-    echo Moviendo archivos a estructura de paquete...
     if not exist gen\org\minic mkdir gen\org\minic
     move gen\grammar\*.java gen\org\minic\ >nul 2>&1
     if exist gen\grammar rmdir gen\grammar
 )
 
-echo Compilando...
 echo 1. Compilando archivos ANTLR...
 javac -cp "lib\antlr-4.13.2-complete.jar" -d bin gen\org\minic\*.java
 
@@ -84,15 +78,10 @@ echo Class-Path: lib/antlr-4.13.2-complete.jar
 ) > MANIFEST.MF
 
 REM CREACION DEL ARCHIVO JAR
-echo Creando JAR...
 jar cfm build\minic.jar MANIFEST.MF -C bin .
-
-echo VERIFICACION:
-echo Archivos en bin\org\minic\:
-dir bin\org\minic /b
 
 echo.
 echo BUILD EXITOSO!
 echo.
 echo PARA USAR EL COMPILADOR:
-echo java -cp "build\minic.jar;lib\antlr-4.13.2-complete.jar" org.minic.MiniCCompiler --help
+echo run.bat --help

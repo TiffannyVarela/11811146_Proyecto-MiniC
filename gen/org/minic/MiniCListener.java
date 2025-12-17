@@ -50,6 +50,16 @@ public interface MiniCListener extends ParseTreeListener {
 	 */
 	void exitInitDeclarator(MiniCParser.InitDeclaratorContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link MiniCParser#arrayDimensions}.
+	 * @param ctx the parse tree
+	 */
+	void enterArrayDimensions(MiniCParser.ArrayDimensionsContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#arrayDimensions}.
+	 * @param ctx the parse tree
+	 */
+	void exitArrayDimensions(MiniCParser.ArrayDimensionsContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link MiniCParser#typeSpecifier}.
 	 * @param ctx the parse tree
 	 */

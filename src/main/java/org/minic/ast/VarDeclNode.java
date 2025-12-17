@@ -6,6 +6,7 @@ public class VarDeclNode extends DeclarationNode {
     private boolean isArray;
     private int arraySize;
     private ExpressionNode initialNode;
+    private int secondDimension = 0;
     
     public VarDeclNode(String type, String name) {
         super(name);        
@@ -30,6 +31,16 @@ public class VarDeclNode extends DeclarationNode {
         this.name = name;
         this.isArray = isArray;
         this.arraySize = arraySize;
+        this.initialNode = initialNode;
+    }
+
+    public VarDeclNode(String type, String name, boolean isArray, int arraySize, int secondDimension, ExpressionNode initialNode) {
+        super(name);        
+        this.type = type;
+        this.name = name;
+        this.isArray = isArray;
+        this.arraySize = arraySize;
+        this.secondDimension = secondDimension;
         this.initialNode = initialNode;
     }
 
@@ -68,6 +79,18 @@ public class VarDeclNode extends DeclarationNode {
     public void setArraySize(int arraySize) {
         this.arraySize = arraySize;
         this.isArray = true;
+    }
+
+    public int getSecondDimension() {
+        return secondDimension;
+    }
+
+    public void setSecondDimension(int secondDimension) {
+        this.secondDimension = secondDimension;
+    }
+
+    public boolean hasSecondDimension() {
+        return isArray && secondDimension > 0;
     }
 
     @Override

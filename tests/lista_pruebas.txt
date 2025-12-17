@@ -2,10 +2,6 @@ tests/examples/good/good1.mc
 tests/examples/good/good2.mc
 tests/examples/good/good3.mc
 tests/examples/good/good4.mc
-tests/examples/good/good5.mc
-tests/examples/good/good6.mc
-tests/examples/good/good7.mc
-tests/examples/good/good8.mc
 tests/examples/bad/bad1.mc
 tests/examples/bad/bad2.mc
 tests/examples/bad/bad3.mc

@@ -21,9 +21,15 @@ initDeclaratorList
 initDeclarator
     : Identifier (LBRACK IntegerConstant RBRACK)*
     | Identifier (LBRACK IntegerConstant RBRACK)* ASSIGN expression
+    | Identifier arrayDimensions? (ASSIGN expression)?
     | Identifier ASSIGN expression
     | STAR Identifier
     | STAR Identifier ASSIGN expression
+    ;
+
+arrayDimensions
+    : LBRACK IntegerConstant RBRACK
+    | LBRACK IntegerConstant RBRACK IntegerConstant RBRACK
     ;
 
 typeSpecifier
@@ -44,6 +50,7 @@ functionDefinition
 
 parameterList
     : parameter (COMMA parameter)*
+    | typeSpecifier Identifier arrayDimensions?
     ;
 
 parameter

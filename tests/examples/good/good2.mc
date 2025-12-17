@@ -1,17 +1,6 @@
-int contador;
-
 int main() {
-    contador = 0;
-
-    while (contador < 5) {
-        contador = contador + 1;
-    }
-
-    if (contador == 5) {
-        contador = contador + 10;
-    } else {
-        contador = 0;
-    }
-
-    return contador;
+    int arr[10][5];
+    arr[2][3] = 42;
+    print_int(arr[2][3]);
+    return 0;
 }

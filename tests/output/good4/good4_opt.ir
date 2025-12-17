@@ -6,14 +6,33 @@
 ; === FUNCIONES ===
 
 FUNCTION main: int
-LOCAL x: int
+LOCAL a: int
+LOCAL b: int
 t0 = 11
-x = t0
-LOCAL y: int
+b = t0
+LOCAL c: int
 t1 = 2
-y = t1
-t2 = x
-t3 = y
-t4 = t2 ADD t3
-RETURN t4
+c = t1
+LOCAL d: int
+t2 = a
+t3 = 11
+t4 = t2 * t3
+d = t4
+LOCAL e: int
+t5 = 20
+e = t5
+LOCAL f: int
+t6 = 6
+f = t6
+LOCAL g: int
+t7 = d
+t8 = 20
+t9 = t7 + t8
+t10 = 2
+t11 = t9 * t10
+g = t11
+t12 = 8
+t13 = g
+t14 = t12 + t13
+RETURN t14
 ENDFUNC main
