@@ -51,9 +51,6 @@ public class Compiler {
                     ? fileName.replace(".mc", "")
                     : "string_code_" + System.currentTimeMillis();
 
-            Path outputDir = Paths.get("tests/output").resolve(baseName);
-            Files.createDirectories(outputDir);
-
             org.antlr.v4.runtime.CharStream input =
                     org.antlr.v4.runtime.CharStreams.fromString(sourceCode, fileName);
             org.minic.MiniCLexer lexer = new org.minic.MiniCLexer(input);
@@ -66,12 +63,6 @@ public class Compiler {
             if (ErrorManager.hasErrors()) {
                 ErrorManager.throwIfErrors();
             }
-
-            TreePrinter.saveToFile(
-                    tree,
-                    parser,
-                    outputDir.resolve(baseName + ".tree").toString()
-            );
 
             AstBuilder astBuilder = new AstBuilder();
             AstNode ast = astBuilder.build(tree);
@@ -100,20 +91,23 @@ public class Compiler {
         String baseName = sourcePath.getFileName().toString().replace(".mc", "");
 
         Path outputDir = Paths.get("tests/output").resolve(baseName);
-        Files.createDirectories(outputDir);
+        
 
+        SemanticChecker checker = new SemanticChecker();
+        checker.check(ast);
+
+        if (ErrorManager.hasErrors()) {
+            ErrorManager.throwIfErrors();  // Esto mostrará errores y lanzará excepción
+            return; // Nunca debería llegar aquí
+        }
+        Files.createDirectories(outputDir);
+        
         TreePrinter.saveToFile(
                 parseTree,
                 parser,
                 outputDir.resolve(baseName + ".tree").toString()
         );
 
-        SemanticChecker checker = new SemanticChecker();
-        checker.check(ast);
-
-        if (ErrorManager.hasErrors()) {
-            ErrorManager.throwIfErrors();
-        }
         IrGenerator irGenOriginal = new IrGenerator();
         List<String> irOriginal = irGenOriginal.generate(ast);
         

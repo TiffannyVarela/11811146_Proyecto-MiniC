@@ -2,6 +2,7 @@ package org.minic.semantic;
 
 import org.minic.ast.*;
 import java.util.*;
+import org.minic.ErrorManager;
 
 public class SemanticChecker implements AstVisitor<Void> {
     private SymbolTable currentScope;
@@ -33,37 +34,37 @@ public class SemanticChecker implements AstVisitor<Void> {
     }
 
     public void check(AstNode ast) {
-        org.minic.ErrorManager.cleanErrors();
-        registerRuntimeFunctions();
+    ErrorManager.cleanErrors(); // OPCIONAL: Si quieres errores solo de este checker
+    registerRuntimeFunctions();
 
-        System.out.println("=== INICIANDO ANÁLISIS SEMÁNTICO ===");
-        System.out.println("Tipo del nodo raíz: " + ast.getClass().getSimpleName());
+    System.out.println("=== INICIANDO ANÁLISIS SEMÁNTICO ===");
+    System.out.println("Tipo del nodo raíz: " + ast.getClass().getSimpleName());
 
-        if (ast instanceof ProgramNode) {
-            this.currentProgram = (ProgramNode) ast;
-            for (AstNode child : currentProgram.getDeclarationsNodes()) {
-                if (child instanceof FunctionNode) {
-                    visitFunctionDecl((FunctionNode) child);
-                }
+    if (ast instanceof ProgramNode) {
+        this.currentProgram = (ProgramNode) ast;
+        for (AstNode child : currentProgram.getDeclarationsNodes()) {
+            if (child instanceof FunctionNode) {
+                visitFunctionDecl((FunctionNode) child);
             }
-            collectGlobalDeclarations((ProgramNode) ast);
-            ast.accept(this);
-
-            checkFunctionDuplicates();
-            checkGlobalInitializers();
-            checkUnusedGlobalVariables();
-            checkMainFunction();
-        } else {
-            addError("El nodo raíz debe ser un ProgramNode");
         }
+        collectGlobalDeclarations((ProgramNode) ast);
+        ast.accept(this);
 
-        if (org.minic.ErrorManager.hasErrors()) {
-            System.err.println("Errores semánticos encontrados: ");
-            org.minic.ErrorManager.printErrors();
-            org.minic.ErrorManager.throwIfErrors();
-        }
-        System.out.println("=== FIN ANÁLISIS SEMÁNTICO ===");
+        checkFunctionDuplicates();
+        checkGlobalInitializers();
+        checkUnusedGlobalVariables();
+        checkMainFunction();
+    } else {
+        addError("El nodo raíz debe ser un ProgramNode");
     }
+
+    // SOLO verificar si hay errores, NO mostrarlos aquí
+    if (ErrorManager.hasErrors()) {
+        System.err.println("Errores semánticos encontrados.\n");
+    }
+    
+    System.out.println("=== FIN ANÁLISIS SEMÁNTICO ===");
+}
 
     @Override
     public Void visit(ProgramNode node) {
@@ -78,13 +79,10 @@ public Void visit(FunctionNode node) {
 
     currentFunction = node.getName();
     currentFunctionReturnType = node.getReturnType();
-    foundReturn = false;  // 🔑 Reiniciar flag al entrar a la función
-
-    // 🔑 Scope de la función
+    foundReturn = false;
     SymbolTable oldScope = currentScope;
     currentScope = new SymbolTable(oldScope);
 
-    // 🔑 Registrar parámetros en el scope
     if (node.getParameters() != null) {
         for (VarDeclNode param : node.getParameters()) {
             Symbol paramSymbol = new Symbol(
@@ -97,12 +95,10 @@ public Void visit(FunctionNode node) {
         }
     }
 
-    // 🔑 Visitar cuerpo de la función
     if (node.getBody() != null) {
         node.getBody().accept(this);
     }
 
-    // 🔍 Verificación final de retorno usando foundReturn
     if (!Type.VOID.equals(currentFunctionReturnType) && !foundReturn) {
         addError("Función '" + currentFunction +
                 "' debe retornar un valor de tipo " + currentFunctionReturnType);

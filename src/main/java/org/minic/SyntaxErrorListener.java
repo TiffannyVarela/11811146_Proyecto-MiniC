@@ -8,10 +8,96 @@ public class SyntaxErrorListener extends BaseErrorListener {
     public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
                           int line, int charPositionInLine, String msg, RecognitionException e) {
         
-        int adjustedColumn = charPositionInLine + 1;
-        String cleanMsg = cleanAntlrMessage(msg);
-        ErrorManager.addError(line, adjustedColumn, cleanMsg);
-        showRealErrorContext(recognizer, line, charPositionInLine);
+        ErrorInfo errorInfo = calculateErrorPosition(recognizer, offendingSymbol, 
+                                                    line, charPositionInLine, msg);        
+        ErrorManager.addError(errorInfo.line, errorInfo.column, errorInfo.message);
+    }
+    
+    private ErrorInfo calculateErrorPosition(Recognizer<?, ?> recognizer, Object offendingSymbol,
+                                           int reportedLine, int reportedCharPos, String msg) {
+        
+        ErrorInfo info = new ErrorInfo();
+        info.reportedLine = reportedLine;
+        info.reportedCharPos = reportedCharPos;
+        info.originalMessage = msg;
+        
+        try {
+            if (!(recognizer instanceof Parser)) {
+                return getFallbackInfo(reportedLine, reportedCharPos, msg);
+            }
+            
+            Parser parser = (Parser) recognizer;
+            TokenStream tokens = parser.getInputStream();
+            if (tokens == null) {
+                return getFallbackInfo(reportedLine, reportedCharPos, msg);
+            }
+            
+            // Obtener el token que causó el error
+            Token errorToken = null;
+            if (offendingSymbol instanceof Token) {
+                errorToken = (Token) offendingSymbol;
+            }
+            
+            info.message = cleanAntlrMessage(msg);
+            
+            if (msg.contains("missing ';'")) {
+                
+                int tokenIndex = ((CommonTokenStream)tokens).index();
+                
+                if (tokenIndex > 0) {
+                    for (int i = tokenIndex - 1; i >= 0; i--) {
+                        Token token = tokens.get(i);
+                        int type = token.getType();
+                        
+                        // Ignorar espacios, comentarios, newlines
+                        if (type != MiniCLexer.Whitespace && 
+                            type != MiniCLexer.LineComment && 
+                            type != MiniCLexer.BlockComment) {
+                            
+                            
+                            // La columna es: posición del token + longitud del token
+                            info.line = token.getLine();
+                            info.column = token.getCharPositionInLine() + token.getText().length() + 1;
+                            return info;
+                        }
+                    }
+                }
+                
+                if (errorToken != null) {
+                    info.line = errorToken.getLine();
+                    info.column = errorToken.getCharPositionInLine() + 1;
+                } else {
+                    info.line = reportedLine;
+                    info.column = reportedCharPos + 1;
+                }
+                
+            } else if (msg.contains("extraneous") || msg.contains("mismatched")) {
+                if (errorToken != null) {
+                    info.line = errorToken.getLine();
+                    info.column = errorToken.getCharPositionInLine() + 1;
+                } else {
+                    info.line = reportedLine;
+                    info.column = reportedCharPos + 1;
+                }
+            } else {
+                info.line = reportedLine;
+                info.column = reportedCharPos + 1;
+            }
+            
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            return getFallbackInfo(reportedLine, reportedCharPos, msg);
+        }
+        
+        return info;
+    }
+    
+    private ErrorInfo getFallbackInfo(int line, int charPos, String msg) {
+        ErrorInfo info = new ErrorInfo();
+        info.line = line;
+        info.column = charPos + 1;
+        info.message = cleanAntlrMessage(msg);
+        return info;
     }
     
     private String cleanAntlrMessage(String antlrMsg) {
@@ -26,10 +112,22 @@ public class SyntaxErrorListener extends BaseErrorListener {
         }
         
         if (msg.startsWith("extraneous input")) {
+            int start = msg.indexOf("'") + 1;
+            int end = msg.indexOf("'", start);
+            if (start > 0 && end > start) {
+                String extra = msg.substring(start, end);
+                return "entrada extraña: '" + extra + "'";
+            }
             return "entrada extraña o inesperada";
         }
         
         if (msg.startsWith("mismatched input")) {
+            int start = msg.indexOf("'") + 1;
+            int end = msg.indexOf("'", start);
+            if (start > 0 && end > start) {
+                String mismatch = msg.substring(start, end);
+                return "entrada no coincide: '" + mismatch + "'";
+            }
             return "entrada no coincide con lo esperado";
         }
         
@@ -40,49 +138,12 @@ public class SyntaxErrorListener extends BaseErrorListener {
         return "error de sintaxis";
     }
     
-    private void showRealErrorContext(Recognizer<?, ?> recognizer, int line, int charPositionInLine) {
-        try {
-            if (!(recognizer instanceof Parser)) return;
-            
-            Parser parser = (Parser) recognizer;
-            TokenStream tokens = parser.getInputStream();
-            if (tokens == null) return;
-            
-            CharStream input = tokens.getTokenSource().getInputStream();
-            if (input == null) return;
-            
-            String fullText = input.toString();
-            String[] lines = fullText.split("\r?\n", -1);
-            
-            if (line > 0 && line <= lines.length) {
-                String errorLine = lines[line - 1];
-                
-                int displayColumn = 1;
-                for (int i = 0; i < charPositionInLine && i < errorLine.length(); i++) {
-                    if (errorLine.charAt(i) == '\t') {
-                        displayColumn += 4;
-                    } else {
-                        displayColumn++;
-                    }
-                }
-                
-                System.err.printf("\n[Línea %d, Columna %d]\n", line, displayColumn);
-                System.err.println("  " + errorLine.replace("\t", "    "));
-                
-                StringBuilder pointer = new StringBuilder("  ");
-                for (int i = 0; i < charPositionInLine && i < errorLine.length(); i++) {
-                    if (errorLine.charAt(i) == '\t') {
-                        pointer.append("    ");
-                    } else {
-                        pointer.append(" ");
-                    }
-                }
-                pointer.append("^ aquí");
-                System.err.println(pointer.toString());
-            }
-            
-        } catch (Exception ex) {
-            // Ignorar errores en visualización
-        }
+    private static class ErrorInfo {
+        int reportedLine;
+        int reportedCharPos;
+        int line;
+        int column;
+        String originalMessage;
+        String message;
     }
 }

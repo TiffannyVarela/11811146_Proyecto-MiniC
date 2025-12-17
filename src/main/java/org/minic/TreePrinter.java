@@ -38,32 +38,48 @@ public class TreePrinter {
     }
    
     public static void saveToFile(ParseTree tree, Parser parser, String outputPath) {
-        try {
-            Path path = Paths.get(outputPath);
-            Files.createDirectories(path.getParent());
-            
-            try (PrintWriter writer = new PrintWriter(new FileWriter(outputPath))) {
-                writer.println("// ===========================================");
-                writer.println("// ÁRBOL DE PARSE - MiniC Compiler");
-                writer.println("// Generado: " + java.time.LocalDateTime.now());
-                writer.println("// ===========================================");
-                writer.println();
-                
-                saveTreeToWriter(tree, "", true, parser, writer);
-                
-                writer.println();
-                writer.println("// ===========================================");
-                writer.println("// FIN DEL ÁRBOL");
-                writer.println("// ===========================================");
-            }
-            
-            System.out.println("✓ Árbol de parse guardado en: " + outputPath);
-            
-        } catch (Exception e) {
-            System.err.println("✗ Error guardando árbol: " + e.getMessage());
+    try {
+        if (tree == null || parser == null || outputPath == null) {
+            System.err.println("✗ No se puede guardar árbol: parámetros inválidos");
+            return;
         }
+        
+        Path path = Paths.get(outputPath);
+        
+        if (ErrorManager.hasErrors()) {
+            System.err.println("✗ No se guarda árbol porque hay errores de compilación");
+            return;
+        }
+        
+        try {
+            Files.createDirectories(path.getParent());
+        } catch (Exception e) {
+            System.err.println("✗ No se pudo crear directorio: " + e.getMessage());
+            return;
+        }
+        
+        try (PrintWriter writer = new PrintWriter(new FileWriter(outputPath))) {
+            writer.println("// ===========================================");
+            writer.println("// ÁRBOL DE PARSE - MiniC Compiler");
+            writer.println("// Generado: " + java.time.LocalDateTime.now());
+            writer.println("// ===========================================");
+            writer.println();
+            
+            saveTreeToWriter(tree, "", true, parser, writer);
+            
+            writer.println();
+            writer.println("// ===========================================");
+            writer.println("// FIN DEL ÁRBOL");
+            writer.println("// ===========================================");
+        }
+        
+        System.out.println("✓ Árbol de parse guardado en: " + outputPath);
+        
+    } catch (Exception e) {
+        System.err.println("✗ Error guardando árbol: " + e.getMessage());
     }
-    
+}
+
     private static void printTree(ParseTree tree, String indent, boolean isLast, Parser parser) {
         String marker = isLast ? "└── " : "├── ";
         System.out.print(indent + marker);

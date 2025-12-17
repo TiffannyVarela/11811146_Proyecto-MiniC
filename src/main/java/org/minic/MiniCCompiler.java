@@ -98,62 +98,65 @@ public class MiniCCompiler {
     }
 
     public static void compileTestFile(String testFile,
-                                       boolean dumpIr,
-                                       boolean optimize,
-                                       String outputFile) throws Exception {
+                                   boolean dumpIr,
+                                   boolean optimize,
+                                   String outputFile) throws Exception {
 
-        System.out.println("Compilando archivo: " + testFile);
+    System.out.println("Compilando archivo: " + testFile);
 
-        Path filePath = Paths.get(testFile);
-        CharStream input = CharStreams.fromPath(filePath);
+    Path filePath = Paths.get(testFile);
+    
+    // Leer el archivo COMPLETO primero para ErrorManager
+    String sourceText = Files.readString(filePath);
+    ErrorManager.setSourceText(sourceText);
+    
+    // Luego crear el CharStream
+    CharStream input = CharStreams.fromString(sourceText, filePath.toString());
 
-        ErrorManager.cleanErrors();
+    ErrorManager.cleanErrors(); // Limpiar aquí también por seguridad
 
-        System.out.println("Análisis léxico...");
-        MiniCLexer lexer = new MiniCLexer(input);
-        CommonTokenStream tokens = new CommonTokenStream(lexer);
+    System.out.println("Análisis léxico...");
+    MiniCLexer lexer = new MiniCLexer(input);
+    CommonTokenStream tokens = new CommonTokenStream(lexer);
 
-        System.out.println("Análisis sintáctico...");
-        MiniCParser parser = new MiniCParser(tokens);
+    System.out.println("Análisis sintáctico...");
+    MiniCParser parser = new MiniCParser(tokens);
 
-        parser.removeErrorListeners();
-        parser.addErrorListener(new BaseErrorListener() {
-            @Override
-            public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
-                                    int line, int charPositionInLine, String msg,
-                                    RecognitionException e) {
-                ErrorManager.addError(line, charPositionInLine + 1, msg);
-            }
-        });
+    parser.removeErrorListeners();
+    lexer.removeErrorListeners();
+    
+    SyntaxErrorListener syntaxErrorListener = new SyntaxErrorListener();
+    parser.addErrorListener(syntaxErrorListener);
+    lexer.addErrorListener(syntaxErrorListener);
 
-        ParseTree tree = parser.program();
+    ParseTree tree = parser.program();
 
-        if (ErrorManager.hasErrors()) {
-            ErrorManager.throwIfErrors();
-        }
-
-        System.out.println("Construyendo AST...");
-        AstBuilder astBuilder = new AstBuilder();
-        AstNode ast = astBuilder.build(tree);
-
-        Compiler.compile(
-                ast,
-                tree,
-                parser,
-                testFile,
-                generateMips,
-                dumpIr,
-                optimize,
-                outputFile
-        );
-
-        if (dumpTree) {
-            TreePrinter.printToConsole(tree, parser);
-            TreePrinter.printStats(tree, parser);
-        }
-
-        System.out.println("Compilación completada para: " + testFile);
+    if (ErrorManager.hasErrors()) {
+        ErrorManager.throwIfErrors();
+        return;
     }
+
+    System.out.println("Construyendo AST...");
+    AstBuilder astBuilder = new AstBuilder();
+    AstNode ast = astBuilder.build(tree);
+    Compiler.compile(
+            ast,
+            tree,
+            parser,
+            testFile,
+            generateMips,
+            dumpIr,
+            optimize,
+            outputFile
+    );
+
+    if (dumpTree) {
+        TreePrinter.printToConsole(tree, parser);
+        TreePrinter.printStats(tree, parser);
+    }
+
+    System.out.println("Compilación completada para: " + testFile);
+}
 
     public static void compileTestFile(String testFile) throws Exception {
         compileTestFile(testFile, false, false, null);
