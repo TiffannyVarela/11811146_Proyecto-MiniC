@@ -8,10 +8,16 @@ public class SyntaxErrorListener extends BaseErrorListener {
     public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
             int line, int charPositionInLine, String msg, RecognitionException e) {
 
+        if (msg.contains("no viable alternative")) {
+            return;
+        }
+
         ErrorInfo errorInfo = calculateErrorPosition(recognizer, offendingSymbol,
                 line, charPositionInLine, msg);
+
         ErrorManager.addError(errorInfo.line, errorInfo.column, errorInfo.message);
     }
+
 
     private ErrorInfo calculateErrorPosition(Recognizer<?, ?> recognizer, Object offendingSymbol,
             int reportedLine, int reportedCharPos, String msg) {
