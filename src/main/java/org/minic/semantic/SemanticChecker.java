@@ -102,29 +102,35 @@ public class SemanticChecker implements AstVisitor<Void> {
     }
 
     @Override
-    public Void visit(VarDeclNode node) {
-        String name = node.getName();
-        String type = node.getType();
+public Void visit(VarDeclNode node) {
+    String name = node.getName();
+    String type = node.getType();
 
-        if (currentScope.lookupCurrentScope(name) != null) {
-            addError("Variable '" + name + "' ya está declarada en este ámbito");
-            return null;
-        }
+    // Si es arreglo, almacenar como tipo[] en el símbolo
+    if (node.isArray()) {   // suponiendo que VarDeclNode tiene isArray()
+        type += "[]";
+    }
 
-        Symbol symbol = new Symbol(name, type, false);
-        currentScope.addSymbol(symbol);
-        localDeclarations.put(name, node);
-
-        if (node.hasInitialNode()) {
-            String initType = getExpressionType(node.getInitialNode());
-            if (!Type.isCompatible(type, initType)) {
-                addError("Inicialización incompatible para variable '" + name +
-                        "'. Esperado: " + type + ", Obtenido: " + initType);
-            }
-        }
-
+    if (currentScope.lookupCurrentScope(name) != null) {
+        addError("Variable '" + name + "' ya está declarada en este ámbito");
         return null;
     }
+
+    Symbol symbol = new Symbol(name, type, false);
+    currentScope.addSymbol(symbol);
+    localDeclarations.put(name, node);
+
+    if (node.hasInitialNode()) {
+        String initType = getExpressionType(node.getInitialNode());
+        if (!Type.isCompatible(type, initType)) {
+            addError("Inicialización incompatible para variable '" + name +
+                    "'. Esperado: " + type + ", Obtenido: " + initType);
+        }
+    }
+
+    return null;
+}
+
 
     @Override
     public Void visit(VarDeclStatementNode node) {
@@ -294,12 +300,35 @@ public class SemanticChecker implements AstVisitor<Void> {
     @Override
     public Void visit(StatementNode node) { return null; }
 
-    @Override
-    public Void visit(ArrayAccessNode node) {
-        getExpressionType(node.getArray());
-        for (ExpressionNode index : node.getIndices()) getExpressionType(index);
-        return null;
+@Override
+public Void visit(ArrayAccessNode node) {
+    // Revisar que el array exista
+    ExpressionNode arrayExpr = node.getArray();
+    String arrayType = getExpressionType(arrayExpr);  // tipo de arr
+
+    if (!arrayType.endsWith("[]")) {
+        addError(
+            arrayExpr instanceof VariableNode ? ((VariableNode) arrayExpr).getLine() : 0,
+            arrayExpr instanceof VariableNode ? ((VariableNode) arrayExpr).getColumn() : 0,
+            "La expresión no es un arreglo"
+        );
     }
+
+    // Revisar índices
+    for (ExpressionNode index : node.getIndices()) {
+        String idxType = getExpressionType(index);
+        if (!Type.INT.equals(idxType)) {
+            addError(
+                index instanceof VariableNode ? ((VariableNode) index).getLine() : 0,
+                index instanceof VariableNode ? ((VariableNode) index).getColumn() : 0,
+                "Índice de arreglo debe ser int, no " + idxType
+            );
+        }
+    }
+
+    return null;
+}
+
 
     @Override
     public Void visit(MemberAccessNode node) {
@@ -315,8 +344,13 @@ public class SemanticChecker implements AstVisitor<Void> {
 
     @Override
     public Void visit(AssignmentNode node) {
-        getExpressionType(node.getValue());
-        getExpressionType(node.getTarget());
+        if (node.getTarget() != null) {
+            node.getTarget().accept(this);
+        }
+        if (node.getValue() != null) {
+            node.getValue().accept(this);
+        }
+
         return null;
     }
 
@@ -351,10 +385,23 @@ public class SemanticChecker implements AstVisitor<Void> {
     private String getBinaryOpType(BinaryOpNode binOp) { return Type.INT; }
     private String getUnaryOpType(UnaryOpNode unaryOp) { return Type.INT; }
     private String getFunctionCallType(FunctionCallNode call) { return Type.VOID; }
-    private String getArrayAccessType(ArrayAccessNode arr) { return Type.VOID; }
+    private String getArrayAccessType(ArrayAccessNode node) {
+    String arrayType = getExpressionType(node.getArray());
+    if (arrayType.endsWith("[]")) {
+        return arrayType.substring(0, arrayType.length() - 2);
+    }
+    return Type.VOID;
+}
+
+
     private String getCastType(CastNode cast) { return cast.getTargetType(); }
 
     private void addError(String message) { ErrorManager.addError(message); }
+
+    private void addError(int line, int column, String message) {
+    ErrorManager.addError(line, column, message);
+}
+
 
     private void collectGlobalDeclarations(ProgramNode program) {
         globalDeclarations.clear();

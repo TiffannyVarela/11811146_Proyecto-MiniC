@@ -94,11 +94,14 @@ public class Compiler {
         
 
         SemanticChecker checker = new SemanticChecker();
+        String sourceText = Files.readString(Paths.get(sourceFile));
+        ErrorManager.setSourceText(sourceText);
         checker.check(ast);
 
         if (ErrorManager.hasErrors()) {
-            ErrorManager.throwIfErrors();  // Esto mostrará errores y lanzará excepción
-            return; // Nunca debería llegar aquí
+            System.out.println("Errores semánticos encontrados:");
+            ErrorManager.throwIfErrors();
+            return;
         }
         Files.createDirectories(outputDir);
         
@@ -111,7 +114,6 @@ public class Compiler {
         IrGenerator irGenOriginal = new IrGenerator();
         List<String> irOriginal = irGenOriginal.generate(ast);
         
-        // DEBUG: Mostrar el IR original
         System.out.println("=== IR ORIGINAL (REAL) ===");
         for (String line : irOriginal) {
             System.out.println(line);
