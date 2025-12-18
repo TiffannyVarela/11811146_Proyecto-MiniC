@@ -9,8 +9,17 @@ import org.antlr.v4.runtime.Token;
 import java.io.*;
 import java.nio.file.*;
 
+/*
+Clase responsable de imprimir y guardar el árbol de parse (ParseTree) generado por ANTLR.
+Permite:
+   - Mostrar el árbol en consola de manera jerárquica.
+   - Guardar el árbol en un archivo con leyenda y estadísticas.
+   - Contar nodos de reglas y tokens terminales.
+ */
+
 public class TreePrinter {
     
+    // Imprime el árbol de parse en consola
     public static void printToConsole(ParseTree tree, Parser parser) {
         System.out.println("\n" + "=".repeat(80));
         System.out.println("  ÁRBOL DE PARSE (PARSE TREE)");
@@ -22,7 +31,7 @@ public class TreePrinter {
         }
         
         printTree(tree, "", true, parser);
-        
+        // Imprime la leyenda al final
         System.out.println("\n" + "=".repeat(80));
         System.out.println("  LEYENDA:");
         System.out.println("  ├── Nodo de regla (no terminal)");
@@ -37,6 +46,7 @@ public class TreePrinter {
         System.out.println("=".repeat(80));
     }
 
+    // Guarda la leyenda en el archivo
     private static void saveLegend(PrintWriter writer) {
         writer.println("// ===========================================");
         writer.println("// LEYENDA");
@@ -52,6 +62,7 @@ public class TreePrinter {
         writer.println("// ===========================================");
     }
 
+    // Guarda las estadísticas del árbol en el archivo
     private static void saveStats(ParseTree tree, Parser parser, PrintWriter writer) {
         if (tree == null) return;
 
@@ -97,7 +108,7 @@ public class TreePrinter {
         writer.println("// ===========================================");
     }
 
-   
+    // Guarda el árbol de parse en un archivo
     public static void saveToFile(ParseTree tree, Parser parser, String outputPath) {
     try {
         if (tree == null || parser == null || outputPath == null) {
@@ -118,7 +129,6 @@ public class TreePrinter {
             System.err.println("No se pudo crear directorio: " + e.getMessage());
             return;
         }
-        
         try (PrintWriter writer = new PrintWriter(new FileWriter(outputPath))) {
             writer.println("// ===========================================");
             writer.println("// ÁRBOL DE PARSE - MiniC Compiler");
@@ -143,7 +153,7 @@ public class TreePrinter {
         System.err.println("Error guardando árbol: " + e.getMessage());
     }
 }
-
+    // Imprime el árbol de parse recursivamente
     private static void printTree(ParseTree tree, String indent, boolean isLast, Parser parser) {
         String marker = isLast ? "└── " : "├── ";
         System.out.print(indent + marker);
@@ -160,6 +170,7 @@ public class TreePrinter {
         }
     }
     
+    // Guarda el árbol de parse recursivamente en el archivo
     private static void saveTreeToWriter(ParseTree tree, String indent, boolean isLast, 
                                          Parser parser, PrintWriter writer) {
         String marker = isLast ? "└── " : "├── ";
@@ -178,6 +189,7 @@ public class TreePrinter {
         }
     }
     
+    // Imprime un nodo terminal (token)
     private static void printTerminalNode(TerminalNode node, Parser parser) {
         Token token = node.getSymbol();
         String tokenName = parser.getVocabulary().getDisplayName(token.getType());
@@ -217,6 +229,7 @@ public class TreePrinter {
         }
     }
     
+    // Guarda un nodo terminal (token) en el archivo
     private static void saveTerminalNode(TerminalNode node, Parser parser, PrintWriter writer) {
         Token token = node.getSymbol();
         String tokenName = parser.getVocabulary().getDisplayName(token.getType());
@@ -257,6 +270,7 @@ public class TreePrinter {
         }
     }
     
+    // Imprime un nodo de regla (no terminal)
     private static void printRuleNode(ParseTree tree, Parser parser) {
         if (tree instanceof RuleContext) {
             RuleContext ctx = (RuleContext) tree;
@@ -267,6 +281,7 @@ public class TreePrinter {
         }
     }
     
+    // Guarda un nodo de regla (no terminal) en el archivo
     private static void saveRuleNode(ParseTree tree, Parser parser, PrintWriter writer) {
         if (tree instanceof RuleContext) {
             RuleContext ctx = (RuleContext) tree;
@@ -276,6 +291,7 @@ public class TreePrinter {
         }
     }
     
+    // Formatea el nombre de la regla para mejor legibilidad
     private static String formatRuleName(String ruleName) {
         StringBuilder formatted = new StringBuilder();
         
@@ -292,6 +308,7 @@ public class TreePrinter {
         return formatted.toString();
     }
     
+    // Imprime las estadísticas del árbol de parse
     public static void printStats(ParseTree tree, Parser parser) {
         if (tree == null) return;
         
@@ -330,6 +347,7 @@ public class TreePrinter {
         System.out.println("=".repeat(80));
     }
 
+    // Recolecta estadísticas del árbol de parse
     private static void collectStats(ParseTree tree, Parser parser,
                                      java.util.Map<String, Integer> ruleCounts,
                                      java.util.Map<String, Integer> tokenCounts) {

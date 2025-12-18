@@ -8,21 +8,32 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Stack;
 
-/* Recorre el árbol generado por ANTLR y construye el AST correspondiente */
+/*
+ AstBuilder: Recorre el Parse Tree generado por ANTLR y construye el Árbol de Sintaxis Abstracta (AST) del lenguaje MiniC.
+ Utiliza el patrón Listener y múltiples pilas para manejar el contexto de nodos, sentencias y expresiones.
+ */
 
 public class AstBuilder extends MiniCBaseListener {
+
+    //Nodo raiz
     private AstNode root;
+    //Pila de nodos AST activos
     private Stack<AstNode> nodeStack = new Stack<>();
+    //Pila de listas de sentencias para manejar bloques y funciones
     private Stack<List<StatementNode>> statementListStack = new Stack<>();
+    //Tipo actual para declaraciones de variables
     private String currentType = null;
+    //Pila de nodos de expresiones para construir expresiones complejas
     private Stack<ExpressionNode> expressionStack = new Stack<>();
 
+    //Método principal para construir el AST a partir del Parse Tree
     public AstNode build(org.antlr.v4.runtime.tree.ParseTree tree) {
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
         return root;
     }
 
+    //Inicializa el nodo raíz del programa y su lista de declaraciones globales
     @Override
     public void enterProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = new ProgramNode();
@@ -30,6 +41,7 @@ public class AstBuilder extends MiniCBaseListener {
         statementListStack.push(new ArrayList<>());
     }
 
+    //Finaliza la construcción del nodo raíz del programa
     @Override
     public void exitProgram(MiniCParser.ProgramContext ctx) {
         ProgramNode programNode = (ProgramNode) nodeStack.pop();
@@ -39,21 +51,22 @@ public class AstBuilder extends MiniCBaseListener {
         root = programNode;
     }
 
+    //Maneja declaraciones de funciones y variables
     @Override
     public void enterDeclaration(MiniCParser.DeclarationContext ctx) {
-
+        // Diferencia entre declaración de función y variable
         if (ctx.functionDeclaration() != null) {
             handleFunctionDeclaration(ctx.functionDeclaration());
             return;
         }
-
         handleVariableDeclaration(ctx);
     }
 
+    //Maneja la declaración de funciones, creando nodos de función y agregándolos al programa
     private void handleFunctionDeclaration(MiniCParser.FunctionDeclarationContext funcDeclCtx) {
         String returnType = funcDeclCtx.typeSpecifier().getText();
         String funcName = funcDeclCtx.Identifier().getText();
-
+        // Lista de parámetros de la función
         List<VarDeclNode> parameters = null;
         if (funcDeclCtx.parameterList() != null) {
             parameters = new ArrayList<>();
@@ -63,9 +76,8 @@ public class AstBuilder extends MiniCBaseListener {
                 parameters.add(new VarDeclNode(paramType, paramName, false, 0, 0, null));
             }
         }
-
+        // Crear el nodo de función sin cuerpo
         FunctionNode funcNode = new FunctionNode(returnType, funcName, parameters, null);
-
         AstNode currentNode = nodeStack.peek();
         if (currentNode instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) currentNode;
@@ -73,21 +85,19 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    //Maneja la declaración de variables, creando nodos de declaración de variables y agregándolos al contexto actual
     private void handleVariableDeclaration(MiniCParser.DeclarationContext ctx) {
         currentType = ctx.typeSpecifier().getText();
-
         for (MiniCParser.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
             String varName = initDeclCtx.Identifier().getText();
-
             boolean isArray = false;
             int arraySize = 0;
             int secondDimension = 0;
-
+            // Manejo de arreglos
             if (initDeclCtx.LBRACK() != null && initDeclCtx.LBRACK().size() > 0) {
                 isArray = true;
                 @SuppressWarnings("unused")
                 int dimensionCount = initDeclCtx.LBRACK().size();
-
                 List<org.antlr.v4.runtime.tree.TerminalNode> constants = initDeclCtx.IntegerConstant();
                 if (constants != null && constants.size() > 0) {
                     if (constants.size() >= 1) {
@@ -98,14 +108,14 @@ public class AstBuilder extends MiniCBaseListener {
                     }
                 }
             }
-
+            // Nodo de expresión inicial si hay una asignación
             ExpressionNode initialNode = null;
             if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
                 if (!expressionStack.isEmpty()) {
                     initialNode = expressionStack.pop();
                 }
             }
-
+            //Ajuste e tipo si es arreglo
             String actualType = currentType;
             if (isArray) {
                 if (secondDimension > 0) {
@@ -114,12 +124,11 @@ public class AstBuilder extends MiniCBaseListener {
                     actualType = currentType + "[]";
                 }
             }
-
             VarDeclNode varDeclNode = new VarDeclNode(actualType, varName, isArray, arraySize, secondDimension,
                     initialNode);
             VarDeclStatementNode declStmt = new VarDeclStatementNode(varDeclNode);
-
             AstNode currentNode = nodeStack.peek();
+            //Variables globales o locales
             if (currentNode instanceof ProgramNode) {
                 ProgramNode programNode = (ProgramNode) currentNode;
                 programNode.addDeclarationNode(varDeclNode);
@@ -127,10 +136,10 @@ public class AstBuilder extends MiniCBaseListener {
                 statementListStack.peek().add(declStmt);
             }
         }
-
         currentType = null;
     }
 
+    //Maneja la entrada a la definición de funciones, creando nodos de función y preparando el contexto para el cuerpo
     @Override
     public void enterFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         String returnType = ctx.typeSpecifier().getText();
@@ -152,6 +161,7 @@ public class AstBuilder extends MiniCBaseListener {
         statementListStack.push(new ArrayList<>());
     }
 
+    //Finaliza la definición de funciones, asignando el cuerpo construido al nodo de función
     @Override
     public void exitFunctionDefinition(MiniCParser.FunctionDefinitionContext ctx) {
         List<StatementNode> bodyStatements = statementListStack.pop();
@@ -161,6 +171,7 @@ public class AstBuilder extends MiniCBaseListener {
         functionNode.setBody(body);
     }
 
+    // Maneja la entrada y salida a bloques compuestos, iniciando una nueva lista de sentencias
     @Override
     public void enterCompoundStatement(MiniCParser.CompoundStatementContext ctx) {
         statementListStack.push(new ArrayList<>());
@@ -175,6 +186,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la entrada y salida a sentencias if, creando nodos IfNode y asignando bloques then y else
     @Override
     public void enterIfStatement(MiniCParser.IfStatementContext ctx) {
         IfNode ifNode = new IfNode(null, null, null);
@@ -205,6 +217,7 @@ public class AstBuilder extends MiniCBaseListener {
         currentStatements.set(currentStatements.size() - 1, updatedIfNode);
     }
 
+    // Maneja la entrada y salida a sentencias while, creando nodos WhileNode y asignando condición y cuerpo
     @Override
     public void enterWhileStatement(MiniCParser.WhileStatementContext ctx) {
         WhileNode whileNode = new WhileNode(null, null);
@@ -224,6 +237,7 @@ public class AstBuilder extends MiniCBaseListener {
         currentStatements.set(currentStatements.size() - 1, updateWhileNode);
     }
 
+    // Maneja la entrada y salida a sentencias do-while, creando nodos DoWhileNode y asignando cuerpo y condición
     @Override
     public void enterDoWhileStatement(MiniCParser.DoWhileStatementContext ctx) {
         DoWhileNode doWhileNode = new DoWhileNode(null, null);
@@ -243,6 +257,7 @@ public class AstBuilder extends MiniCBaseListener {
         current.set(current.size() - 1, update);
     }
 
+    // Maneja la entrada y salida a sentencias for, creando nodos ForNode y asignando inicialización, condición, actualización y cuerpo
     @Override
     public void enterForStatement(MiniCParser.ForStatementContext ctx) {
         ForNode forNode = new ForNode(null, null, null, null);
@@ -263,6 +278,7 @@ public class AstBuilder extends MiniCBaseListener {
         current.set(current.size() - 1, update);
     }
 
+    // Maneja la salida de sentencias de asignación, creando nodos AssignmentNode
     @Override
     public void exitAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) {
         ExpressionNode value = !expressionStack.isEmpty() ? expressionStack.pop() : null;
@@ -284,6 +300,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la entrada de sentencias de expresión, creando nodos ExpressionStatementNode
     @Override
     public void enterExpressionStatement(MiniCParser.ExpressionStatementContext ctx) {
         if (ctx.expression() != null) {
@@ -298,6 +315,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de sentencias de retorno, creando nodos ReturnNode
     @Override
     public void exitReturnStatement(MiniCParser.ReturnStatementContext ctx) {
         ExpressionNode returnValue = !expressionStack.isEmpty() ? expressionStack.pop() : null;
@@ -311,6 +329,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la entrada a expresiones primarias, creando nodos correspondientes para constantes y literales
     @Override
     public void enterPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx) {
         if (ctx.IntegerConstant() != null) {
@@ -334,6 +353,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la entrada a expresiones de llamada a funciones, creando nodos FunctionCallNode
     @Override
     public void enterCallExpression(MiniCParser.CallExpressionContext ctx) {
         String funcName = ctx.Identifier().getText();
@@ -348,6 +368,7 @@ public class AstBuilder extends MiniCBaseListener {
         expressionStack.push(new FunctionCallNode(funcName, args));
     }
 
+    // Maneja la salida de lvalues, creando nodos VariableNode, ArrayAccessNode o UnaryOpNode según corresponda
     @Override
     public void exitLvalue(MiniCParser.LvalueContext ctx) {
 
@@ -391,6 +412,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones multiplicativas, creando nodos BinaryOpNode
     @Override
     public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
 
@@ -417,6 +439,7 @@ public class AstBuilder extends MiniCBaseListener {
         expressionStack.push(result);
     }
 
+    // Maneja la salida de expresiones aditivas, creando nodos BinaryOpNode
     @Override
     public void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) {
         if (ctx.multiplicativeExpression().size() > 1) {
@@ -446,6 +469,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones relacionales, creando nodos BinaryOpNode
     @Override
     public void exitRelationalExpression(MiniCParser.RelationalExpressionContext ctx) {
 
@@ -479,6 +503,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones de igualdad, creando nodos BinaryOpNode
     @Override
     public void exitEqualityExpression(MiniCParser.EqualityExpressionContext ctx) {
 
@@ -512,6 +537,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones lógicas AND, creando nodos BinaryOpNode
     @Override
     public void exitLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) {
 
@@ -545,6 +571,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones lógicas OR, creando nodos BinaryOpNode
     @Override
     public void exitLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) {
 
@@ -578,6 +605,7 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
+    // Maneja la salida de expresiones de unary, creando nodos UnaryOpNode
     @Override
     public void exitUnaryExpression(MiniCParser.UnaryExpressionContext ctx) {
 

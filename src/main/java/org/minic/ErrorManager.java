@@ -3,14 +3,18 @@ package org.minic;
 import java.util.*;
 
 public class ErrorManager {
+    //Lista que guarda todos los errores de compilacion
     private static final List<CompilationException> errors = new ArrayList<>();
+    // Modo verboso para mostrar errores con contexto
     private static boolean verboseMode = true;
+    // Texto fuente para mostrar contexto en errores
     private static String sourceText = "";
-
+    // Activa o desactiva el modo verboso
     public static void setVerboseMode(boolean verbose) {
         verboseMode = verbose;
     }
 
+    // Establece el texto fuente para mostrar contexto en errores
     public static void setSourceText(String text) {
         sourceText = text;
         if (!text.isEmpty()) {
@@ -52,7 +56,6 @@ public class ErrorManager {
         if (verboseMode) {
             System.err.println("\n=== ERRORES DE COMPILACION ===");
         }
-
         for (CompilationException error : errors) {
             if (verboseMode && error.getLine() > 0 && error.getColumn() > 0) {
                 showErrorWithContext(error);

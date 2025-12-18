@@ -2,25 +2,27 @@ package org.minic;
 
 import org.antlr.v4.runtime.*;
 
+/*
+Listener personalizado de errores de sintaxis para ANTLR.
+Permite interceptar errores de parsing y adaptarlos a mensajes más amigables, con posición exacta de línea y columna.
+ */
 public class SyntaxErrorListener extends BaseErrorListener {
 
+    // Maneja errores de sintaxis reportados por ANTLR
     @Override
-    public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
-            int line, int charPositionInLine, String msg, RecognitionException e) {
-
+    public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol, int line, int charPositionInLine, String msg, RecognitionException e) {
+        // Ignorar errores de "no viable alternative" para evitar mensajes redundantes
         if (msg.contains("no viable alternative")) {
             return;
         }
-
-        ErrorInfo errorInfo = calculateErrorPosition(recognizer, offendingSymbol,
-                line, charPositionInLine, msg);
-
+        // Calcular posición y mensaje de error adaptado
+        ErrorInfo errorInfo = calculateErrorPosition(recognizer, offendingSymbol, line, charPositionInLine, msg);
+        // Registrar el error en el gestor de errores
         ErrorManager.addError(errorInfo.line, errorInfo.column, errorInfo.message);
     }
 
-
-    private ErrorInfo calculateErrorPosition(Recognizer<?, ?> recognizer, Object offendingSymbol,
-            int reportedLine, int reportedCharPos, String msg) {
+    // Calcula la posición y mensaje de error adaptado
+    private ErrorInfo calculateErrorPosition(Recognizer<?, ?> recognizer, Object offendingSymbol, int reportedLine, int reportedCharPos, String msg) {
 
         ErrorInfo info = new ErrorInfo();
         info.reportedLine = reportedLine;
@@ -94,6 +96,7 @@ public class SyntaxErrorListener extends BaseErrorListener {
         return info;
     }
 
+    // Genera información de error por defecto
     private ErrorInfo getFallbackInfo(int line, int charPos, String msg) {
         ErrorInfo info = new ErrorInfo();
         info.line = line;
@@ -102,6 +105,7 @@ public class SyntaxErrorListener extends BaseErrorListener {
         return info;
     }
 
+    // Limpia y adapta el mensaje de error de ANTLR a uno más amigable
     private String cleanAntlrMessage(String antlrMsg) {
         String msg = antlrMsg.trim();
 

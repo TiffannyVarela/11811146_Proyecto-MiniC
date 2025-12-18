@@ -4,13 +4,35 @@ import org.minic.ast.*;
 import java.util.*;
 import org.minic.ErrorManager;
 
+/*
+ SemanticChecker
+
+Implementa el análisis semántico del lenguaje MiniC.
+
+Este valida:
+   - Declaración previa de variables y funciones
+   - Tipos compatibles en expresiones y asignaciones
+   - Uso correcto de arreglos
+   - Correcto retorno en funciones
+   - Existencia y firma válida de la función main
+ 
+ El análisis se realiza recorriendo el AST mediante el patrón Visitor.
+ */
+
 public class SemanticChecker implements AstVisitor<Void> {
+    // Tabla de símbolos para el seguimiento de variables y funciones
     private SymbolTable currentScope;
+    // Nombre y tipo de la función actual (si aplica)
     private String currentFunction;
+    // Tipo de retorno esperado de la función actual
     private String currentFunctionReturnType;
+    // Lista de declaraciones globales
     private List<VarDeclNode> globalDeclarations;
+    // Nodo raíz del programa
     private ProgramNode currentProgram;
+    // Mapa de declaraciones locales en el ámbito actual
     private Map<String, VarDeclNode> localDeclarations;
+    // Indicador de si se ha encontrado una sentencia return en la función actual
     private boolean foundReturn;
 
     public SemanticChecker() {
@@ -22,6 +44,7 @@ public class SemanticChecker implements AstVisitor<Void> {
         this.foundReturn = false;
     }
 
+    // Registra las funciones de tiempo de ejecución en la tabla de símbolos
     private void registerRuntimeFunctions() {
         currentScope.addSymbol(new Symbol("print_int", Type.VOID, true));
         currentScope.addSymbol(new Symbol("print_string", Type.VOID, true));
@@ -33,21 +56,22 @@ public class SemanticChecker implements AstVisitor<Void> {
         currentScope.addSymbol(new Symbol("read_char", Type.CHAR, true));
     }
 
+    // Realiza el chequeo semántico del AST dado
     public void check(AstNode ast) {
         ErrorManager.cleanErrors();
         registerRuntimeFunctions();
-
         if (ast instanceof ProgramNode) {
             this.currentProgram = (ProgramNode) ast;
+            // Primero registrar todas las declaraciones de funciones
             for (AstNode child : currentProgram.getDeclarationsNodes()) {
                 if (child instanceof FunctionNode) {
                     visitFunctionDecl((FunctionNode) child);
                 }
             }
-
             collectGlobalDeclarations(currentProgram);
+            // Luego recorrer el AST completo
             ast.accept(this);
-
+            // Validaciones adicionales después del recorrido
             checkFunctionDuplicates();
             checkGlobalInitializers();
             checkUnusedGlobalVariables();
@@ -57,6 +81,7 @@ public class SemanticChecker implements AstVisitor<Void> {
         }
     }
 
+    // Visita el nodo de programa
     @Override
     public Void visit(ProgramNode node) {
         for (AstNode child : node.getDeclarationsNodes()) {
@@ -65,15 +90,15 @@ public class SemanticChecker implements AstVisitor<Void> {
         return null;
     }
 
+    // Visita el nodo de función
     @Override
     public Void visit(FunctionNode node) {
         currentFunction = node.getName();
         currentFunctionReturnType = node.getReturnType();
         foundReturn = false;
-
         SymbolTable oldScope = currentScope;
         currentScope = new SymbolTable(oldScope);
-
+        // Registrar parámetros en el nuevo ámbito
         if (node.getParameters() != null) {
             for (VarDeclNode param : node.getParameters()) {
                 Symbol paramSymbol = new Symbol(param.getName(), param.getType(), false);
@@ -82,16 +107,15 @@ public class SemanticChecker implements AstVisitor<Void> {
                 }
             }
         }
-
+        // Visitar el cuerpo de la función
         if (node.getBody() != null) {
             node.getBody().accept(this);
         }
-
+        // Verificar que las funciones no void retornen un valor
         if (!Type.VOID.equals(currentFunctionReturnType) && !foundReturn) {
             addError("Función '" + currentFunction +
                     "' debe retornar un valor de tipo " + currentFunctionReturnType);
         }
-
         currentScope = oldScope;
         currentFunction = null;
         currentFunctionReturnType = null;
@@ -99,6 +123,7 @@ public class SemanticChecker implements AstVisitor<Void> {
         return null;
     }
 
+    // Visita el nodo de declaración de variable
     @Override
     public Void visit(VarDeclNode node) {
         String name = node.getName();
@@ -107,17 +132,13 @@ public class SemanticChecker implements AstVisitor<Void> {
         if (!type.contains("[]") && node.isArray()) {
             type += "[]";
         }
-
-
         if (currentScope.lookupCurrentScope(name) != null) {
             addError("Variable '" + name + "' ya está declarada en este ámbito");
             return null;
         }
-
         Symbol symbol = new Symbol(name, type, false);
         currentScope.addSymbol(symbol);
         localDeclarations.put(name, node);
-
         if (node.hasInitialNode()) {
             String initType = getExpressionType(node.getInitialNode());
             if (!Type.isCompatible(type, initType)) {
@@ -125,7 +146,6 @@ public class SemanticChecker implements AstVisitor<Void> {
                         "'. Esperado: " + type + ", Obtenido: " + initType);
             }
         }
-
         return null;
     }
 
@@ -353,23 +373,18 @@ public class SemanticChecker implements AstVisitor<Void> {
                 return null;
             }
         }
-
         if (arrayName == null) {
             addError(node.getLine(), node.getColumn(),
                     "No se pudo determinar el nombre del arreglo");
             return null;
         }
-
-
         Symbol symbol = currentScope.lookup(arrayName);
 
         if (symbol == null) {
             addError(line, column, "Variable no declarada: '" + arrayName + "'");
             return null;
         }
-
         String symbolType = symbol.getType();
-
         if (!symbolType.contains("[]")) {
             addError(line, column, "'" + arrayName + "' no es un arreglo");
         }
@@ -415,6 +430,7 @@ public class SemanticChecker implements AstVisitor<Void> {
         return null;
     }
 
+    // Determina el tipo de una expresión dada
     private String getExpressionType(ExpressionNode expr) {
         if (expr instanceof NumberNode)
             return Type.INT;
@@ -485,7 +501,6 @@ public class SemanticChecker implements AstVisitor<Void> {
                 return Type.VOID;
             }
         }
-
         return currentType;
     }
 
