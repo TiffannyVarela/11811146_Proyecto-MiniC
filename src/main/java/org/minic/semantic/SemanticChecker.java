@@ -100,33 +100,34 @@ public class SemanticChecker implements AstVisitor<Void> {
     }
 
     @Override
-public Void visit(VarDeclNode node) {
-    String name = node.getName();
-    String type = node.getType();
-    if (node.isArray()) {
-        type += "[]";
-    }
+    public Void visit(VarDeclNode node) {
+        String name = node.getName();
+        String type = node.getType();
 
-    if (currentScope.lookupCurrentScope(name) != null) {
-        addError("Variable '" + name + "' ya está declarada en este ámbito");
+        if (!type.contains("[]") && node.isArray()) {
+            type += "[]";
+        }
+
+
+        if (currentScope.lookupCurrentScope(name) != null) {
+            addError("Variable '" + name + "' ya está declarada en este ámbito");
+            return null;
+        }
+
+        Symbol symbol = new Symbol(name, type, false);
+        currentScope.addSymbol(symbol);
+        localDeclarations.put(name, node);
+
+        if (node.hasInitialNode()) {
+            String initType = getExpressionType(node.getInitialNode());
+            if (!Type.isCompatible(type, initType)) {
+                addError("Inicialización incompatible para variable '" + name +
+                        "'. Esperado: " + type + ", Obtenido: " + initType);
+            }
+        }
+
         return null;
     }
-
-    Symbol symbol = new Symbol(name, type, false);
-    currentScope.addSymbol(symbol);
-    localDeclarations.put(name, node);
-
-    if (node.hasInitialNode()) {
-        String initType = getExpressionType(node.getInitialNode());
-        if (!Type.isCompatible(type, initType)) {
-            addError("Inicialización incompatible para variable '" + name +
-                    "'. Esperado: " + type + ", Obtenido: " + initType);
-        }
-    }
-
-    return null;
-}
-
 
     @Override
     public Void visit(VarDeclStatementNode node) {
@@ -191,14 +192,16 @@ public Void visit(VarDeclNode node) {
         currentScope = new SymbolTable(currentScope);
 
         try {
-            if (node.getInit() != null) node.getInit().accept(this);
+            if (node.getInit() != null)
+                node.getInit().accept(this);
             if (node.getCondition() != null) {
                 String condType = getExpressionType(node.getCondition());
                 if (!Type.BOOLEAN.equals(condType)) {
                     addError("La condición del for debe ser boolean, no " + condType);
                 }
             }
-            if (node.getIncrement() != null) getExpressionType(node.getIncrement());
+            if (node.getIncrement() != null)
+                getExpressionType(node.getIncrement());
             node.getBody().accept(this);
         } finally {
             currentScope = oldScope;
@@ -248,8 +251,17 @@ public Void visit(VarDeclNode node) {
     @Override
     public Void visit(VariableNode node) {
         String name = node.getName();
+        if (name.contains("[") || name.contains("]")) {
+            System.err.println("ERROR: VariableNode con nombre inválido detectado: '" + name + "'");
+            System.err.println("  Esto probablemente viene de un AssignmentNode mal construido");
+            addError(node.getLine(), node.getColumn(),
+                    "Nombre de variable inválido: '" + name +
+                            "'. Los accesos a arreglo deben ser ArrayAccessNode, no VariableNode");
+            return null;
+        }
         Symbol symbol = currentScope.lookup(name);
-        if (symbol == null) addError("Variable no declarada: '" + name + "'");
+        if (symbol == null)
+            addError("Variable no declarada: '" + name + "'");
         return null;
     }
 
@@ -270,19 +282,39 @@ public Void visit(VarDeclNode node) {
     }
 
     @Override
-    public Void visit(NumberNode node) { return null; }
+    public Void visit(NumberNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(CharNode node) { return null; }
+    public Void visit(CharNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(StringNode node) { return null; }
+    public Void visit(StringNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(BooleanNode node) { return null; }
+    public Void visit(BooleanNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(DeclarationNode node) { return null; }
+    public Void visit(DeclarationNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(IdentifierNode node) { return null; }
+    public Void visit(IdentifierNode node) {
+        return null;
+    }
+
     @Override
-    public Void visit(LiteralNode node) { return null; }
+    public Void visit(LiteralNode node) {
+        return null;
+    }
 
     @Override
     public Void visit(ParamNode node) {
@@ -293,83 +325,66 @@ public Void visit(VarDeclNode node) {
     }
 
     @Override
-    public Void visit(StatementNode node) { return null; }
-//Funcion
-@Override
-public Void visit(ArrayAccessNode node) {
-    ExpressionNode arrayExpr = node.getArray();
-    
-    String arrayName;
-    int line = 0;
-    int column = 0;
-    
-    if (arrayExpr instanceof VariableNode) {
-        arrayName = ((VariableNode) arrayExpr).getName();
-        line = ((VariableNode) arrayExpr).getLine();
-        column = ((VariableNode) arrayExpr).getColumn();
-    } else if (arrayExpr instanceof ArrayAccessNode) {
-        ExpressionNode baseExpr = arrayExpr;
-        while (baseExpr instanceof ArrayAccessNode) {
-            baseExpr = ((ArrayAccessNode) baseExpr).getArray();
+    public Void visit(StatementNode node) {
+        return null;
+    }
+
+    @Override
+    public Void visit(ArrayAccessNode node) {
+
+        ExpressionNode arrayExpr = node.getArray();
+
+        String arrayName = null;
+        int line = node.getLine();
+        int column = node.getColumn();
+
+        ExpressionNode currentExpr = arrayExpr;
+        while (true) {
+            if (currentExpr instanceof VariableNode) {
+                arrayName = ((VariableNode) currentExpr).getName();
+                line = ((VariableNode) currentExpr).getLine();
+                column = ((VariableNode) currentExpr).getColumn();
+                break;
+            } else if (currentExpr instanceof ArrayAccessNode) {
+                currentExpr = ((ArrayAccessNode) currentExpr).getArray();
+            } else {
+                addError(node.getLine(), node.getColumn(),
+                        "Acceso inválido a arreglo - expresión base no válida");
+                return null;
+            }
         }
-        
-        if (baseExpr instanceof VariableNode) {
-            arrayName = ((VariableNode) baseExpr).getName();
-            line = ((VariableNode) baseExpr).getLine();
-            column = ((VariableNode) baseExpr).getColumn();
-        } else {
-            addError(node.getLine(), node.getColumn(), "Acceso inválido a arreglo - no se encontró variable base");
+
+        if (arrayName == null) {
+            addError(node.getLine(), node.getColumn(),
+                    "No se pudo determinar el nombre del arreglo");
             return null;
         }
-    } else {
-        addError(node.getLine(), node.getColumn(), "Acceso inválido a arreglo - expresión base no válida");
-        return null;
-    }
-    
-    Symbol symbol = currentScope.lookup(arrayName);
-    
-    if (symbol == null) {
-        addError(line, column, "Variable no declarada: '" + arrayName + "'");
-        return null;
-    }
-    
-    String symbolType = symbol.getType();
-    boolean isArray = symbolType.endsWith("[]");
-    
-    if (!isArray) {
-        addError(line, column, "'" + arrayName + "' no es un arreglo");
-    }
-    
-    int declaredDimensions = 0;
-    String tempType = symbolType;
-    while (tempType.endsWith("[]")) {
-        declaredDimensions++;
-        tempType = tempType.substring(0, tempType.length() - 2);
-    }
-    
-    int accessDimensions = node.getIndices().size();
-    
-    if (accessDimensions > declaredDimensions) {
-        addError(line, column, 
-            "Acceso a demasiadas dimensiones en '" + arrayName + 
-            "'. Declarado: " + declaredDimensions + 
-            ", Accediendo: " + accessDimensions);
-    }
-    
-    for (ExpressionNode index : node.getIndices()) {
-        String idxType = getExpressionType(index);
-        if (!Type.INT.equals(idxType)) {
-            addError(
-                index.getLine(),
-                index.getColumn(),
-                "Índice de arreglo debe ser int, no " + idxType
-            );
+
+
+        Symbol symbol = currentScope.lookup(arrayName);
+
+        if (symbol == null) {
+            addError(line, column, "Variable no declarada: '" + arrayName + "'");
+            return null;
         }
+
+        String symbolType = symbol.getType();
+
+        if (!symbolType.contains("[]")) {
+            addError(line, column, "'" + arrayName + "' no es un arreglo");
+        }
+        for (ExpressionNode index : node.getIndices()) {
+            String idxType = getExpressionType(index);
+            if (!Type.INT.equals(idxType)) {
+                addError(
+                        index.getLine(),
+                        index.getColumn(),
+                        "Índice de arreglo debe ser int, no " + idxType);
+            }
+        }
+
+        return null;
     }
-
-    return null;
-}
-
 
     @Override
     public Void visit(MemberAccessNode node) {
@@ -396,69 +411,101 @@ public Void visit(ArrayAccessNode node) {
     }
 
     @Override
-    public Void visit(ArrayDimensionsNode node) { return null; }
+    public Void visit(ArrayDimensionsNode node) {
+        return null;
+    }
 
     private String getExpressionType(ExpressionNode expr) {
-        if (expr instanceof NumberNode) return Type.INT;
-        if (expr instanceof BooleanNode) return Type.BOOLEAN;
-        if (expr instanceof CharNode) return Type.CHAR;
-        if (expr instanceof StringNode) return Type.STRING;
-        if (expr instanceof VariableNode) return getVariableType((VariableNode) expr);
-        if (expr instanceof BinaryOpNode) return getBinaryOpType((BinaryOpNode) expr);
-        if (expr instanceof UnaryOpNode) return getUnaryOpType((UnaryOpNode) expr);
-        if (expr instanceof FunctionCallNode) return getFunctionCallType((FunctionCallNode) expr);
-        if (expr instanceof ArrayAccessNode) return getArrayAccessType((ArrayAccessNode) expr);
-        if (expr instanceof CastNode) return getCastType((CastNode) expr);
-        if (expr instanceof MemberAccessNode) return Type.VOID;
+        if (expr instanceof NumberNode)
+            return Type.INT;
+        if (expr instanceof BooleanNode)
+            return Type.BOOLEAN;
+        if (expr instanceof CharNode)
+            return Type.CHAR;
+        if (expr instanceof StringNode)
+            return Type.STRING;
+        if (expr instanceof VariableNode)
+            return getVariableType((VariableNode) expr);
+        if (expr instanceof BinaryOpNode)
+            return getBinaryOpType((BinaryOpNode) expr);
+        if (expr instanceof UnaryOpNode)
+            return getUnaryOpType((UnaryOpNode) expr);
+        if (expr instanceof FunctionCallNode)
+            return getFunctionCallType((FunctionCallNode) expr);
+        if (expr instanceof ArrayAccessNode)
+            return getArrayAccessType((ArrayAccessNode) expr);
+        if (expr instanceof CastNode)
+            return getCastType((CastNode) expr);
+        if (expr instanceof MemberAccessNode)
+            return Type.VOID;
 
         addError("Expresión de tipo desconocido: " + (expr != null ? expr.getClass().getSimpleName() : "null"));
         return Type.VOID;
     }
 
     private String getVariableType(VariableNode variable) {
-        Symbol s = currentScope.lookup(variable.getName());
-        if (s == null) return Type.VOID;
-        return s.getType();
-    }
+        String name = variable.getName();
 
-    private String getBinaryOpType(BinaryOpNode binOp) { return Type.INT; }
-    private String getUnaryOpType(UnaryOpNode unaryOp) { return Type.INT; }
-    private String getFunctionCallType(FunctionCallNode call) { return Type.VOID; }
-//Funcion
-    private String getArrayAccessType(ArrayAccessNode node) {
-    ExpressionNode arrayExpr = node.getArray();
-    String baseType = getExpressionType(arrayExpr);
-    
-    if (baseType == null || baseType.equals(Type.VOID)) {
-        return Type.VOID;
-    }
-    
-    int accessDimensions = node.getIndices().size();
-    String currentType = baseType;
-    
-    for (int i = 0; i < accessDimensions; i++) {
-        if (currentType.endsWith("[]")) {
-            currentType = currentType.substring(0, currentType.length() - 2);
-        } else {
+        Symbol s = currentScope.lookup(name);
+        if (s == null) {
             return Type.VOID;
         }
+
+        String type = s.getType();
+        return type;
     }
-    
-    return currentType;
-}
 
-    private String getCastType(CastNode cast) { return cast.getTargetType(); }
+    private String getBinaryOpType(BinaryOpNode binOp) {
+        return Type.INT;
+    }
 
-    private void addError(String message) { ErrorManager.addError(message); }
+    private String getUnaryOpType(UnaryOpNode unaryOp) {
+        return Type.INT;
+    }
+
+    private String getFunctionCallType(FunctionCallNode call) {
+        return Type.VOID;
+    }
+
+    private String getArrayAccessType(ArrayAccessNode node) {
+
+        String baseType = getExpressionType(node.getArray());
+
+        if (baseType == null || baseType.equals(Type.VOID)) {
+            return Type.VOID;
+        }
+
+        int accessDimensions = node.getIndices().size();
+        String currentType = baseType;
+
+        for (int i = 0; i < accessDimensions; i++) {
+            if (currentType.endsWith("[]")) {
+                currentType = currentType.substring(0, currentType.length() - 2);
+            } else {
+                return Type.VOID;
+            }
+        }
+
+        return currentType;
+    }
+
+    private String getCastType(CastNode cast) {
+        return cast.getTargetType();
+    }
+
+    private void addError(String message) {
+        ErrorManager.addError(message);
+    }
 
     private void addError(int line, int column, String message) {
-    ErrorManager.addError(line, column, message);
-}
+        ErrorManager.addError(line, column, message);
+    }
 
     private void collectGlobalDeclarations(ProgramNode program) {
         globalDeclarations.clear();
         for (AstNode node : program.getDeclarationsNodes()) {
-            if (node instanceof VarDeclNode) globalDeclarations.add((VarDeclNode) node);
+            if (node instanceof VarDeclNode)
+                globalDeclarations.add((VarDeclNode) node);
         }
     }
 
@@ -475,18 +522,21 @@ public Void visit(ArrayAccessNode node) {
     }
 
     private void checkFunctionDuplicates() {
-        if (currentProgram == null) return;
+        if (currentProgram == null)
+            return;
         Set<String> names = new HashSet<>();
         for (AstNode node : currentProgram.getDeclarationsNodes()) {
             if (node instanceof FunctionNode) {
                 String n = ((FunctionNode) node).getName();
-                if (!names.add(n)) addError("Función duplicada: " + n);
+                if (!names.add(n))
+                    addError("Función duplicada: " + n);
             }
         }
     }
 
     private void checkGlobalInitializers() {
-        if (currentProgram == null) return;
+        if (currentProgram == null)
+            return;
         for (VarDeclNode var : globalDeclarations) {
             if (var.hasInitialNode() && !isConstantExpression(var.getInitialNode())) {
                 addError("Inicializador global debe ser constante: " + var.getName());
@@ -496,24 +546,27 @@ public Void visit(ArrayAccessNode node) {
 
     private boolean isConstantExpression(ExpressionNode expr) {
         return expr instanceof NumberNode || expr instanceof BooleanNode ||
-               expr instanceof CharNode || expr instanceof StringNode;
+                expr instanceof CharNode || expr instanceof StringNode;
     }
 
     private void checkUnusedGlobalVariables() {
     }
 
     private void checkMainFunction() {
-        if (currentProgram == null) return;
+        if (currentProgram == null)
+            return;
         boolean found = false;
         for (AstNode node : currentProgram.getDeclarationsNodes()) {
             if (node instanceof FunctionNode fn && fn.getName().equals("main")) {
                 found = true;
-                if (!Type.INT.equals(fn.getReturnType())) addError("main debe retornar int");
+                if (!Type.INT.equals(fn.getReturnType()))
+                    addError("main debe retornar int");
                 if (fn.getParameters() != null && !fn.getParameters().isEmpty())
                     addError("main no debe tener parámetros");
                 break;
             }
         }
-        if (!found) addError("No se encontró la función main");
+        if (!found)
+            addError("No se encontró la función main");
     }
 }

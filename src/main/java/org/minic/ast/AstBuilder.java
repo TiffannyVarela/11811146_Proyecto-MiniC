@@ -16,7 +16,7 @@ public class AstBuilder extends MiniCBaseListener {
     private Stack<List<StatementNode>> statementListStack = new Stack<>();
     private String currentType = null;
     private Stack<ExpressionNode> expressionStack = new Stack<>();
-    
+
     public AstNode build(org.antlr.v4.runtime.tree.ParseTree tree) {
         ParseTreeWalker walker = new ParseTreeWalker();
         walker.walk(this, tree);
@@ -35,7 +35,6 @@ public class AstBuilder extends MiniCBaseListener {
         ProgramNode programNode = (ProgramNode) nodeStack.pop();
         List<StatementNode> globalStatements = statementListStack.pop();
         if (!globalStatements.isEmpty()) {
-            System.out.println("AST BUILDER: Ignorando statements globales que no son funciones ni declaracion de variables.");
         }
         root = programNode;
     }
@@ -79,19 +78,24 @@ public class AstBuilder extends MiniCBaseListener {
 
         for (MiniCParser.InitDeclaratorContext initDeclCtx : ctx.initDeclaratorList().initDeclarator()) {
             String varName = initDeclCtx.Identifier().getText();
+
             boolean isArray = false;
             int arraySize = 0;
             int secondDimension = 0;
 
-            if (initDeclCtx.arrayDimensions() != null) {
-                MiniCParser.ArrayDimensionsContext dims = initDeclCtx.arrayDimensions();
-                if (dims.IntegerConstant().size() == 1) {
-                    isArray = true;
-                    arraySize = Integer.parseInt(dims.IntegerConstant(0).getText());
-                } else if (dims.IntegerConstant().size() == 2) {
-                    isArray = true;
-                    arraySize = Integer.parseInt(dims.IntegerConstant(0).getText());
-                    secondDimension = Integer.parseInt(dims.IntegerConstant(1).getText());
+            if (initDeclCtx.LBRACK() != null && initDeclCtx.LBRACK().size() > 0) {
+                isArray = true;
+                @SuppressWarnings("unused")
+                int dimensionCount = initDeclCtx.LBRACK().size();
+
+                List<org.antlr.v4.runtime.tree.TerminalNode> constants = initDeclCtx.IntegerConstant();
+                if (constants != null && constants.size() > 0) {
+                    if (constants.size() >= 1) {
+                        arraySize = Integer.parseInt(constants.get(0).getText());
+                    }
+                    if (constants.size() >= 2) {
+                        secondDimension = Integer.parseInt(constants.get(1).getText());
+                    }
                 }
             }
 
@@ -101,9 +105,27 @@ public class AstBuilder extends MiniCBaseListener {
                     initialNode = expressionStack.pop();
                 }
             }
-            VarDeclNode varDeclNode = new VarDeclNode(currentType, varName, isArray, arraySize, secondDimension, initialNode);
+
+            String actualType = currentType;
+            if (isArray) {
+                if (secondDimension > 0) {
+                    actualType = currentType + "[][]";
+                } else {
+                    actualType = currentType + "[]";
+                }
+            }
+
+            VarDeclNode varDeclNode = new VarDeclNode(actualType, varName, isArray, arraySize, secondDimension,
+                    initialNode);
             VarDeclStatementNode declStmt = new VarDeclStatementNode(varDeclNode);
-            statementListStack.peek().add(declStmt);
+
+            AstNode currentNode = nodeStack.peek();
+            if (currentNode instanceof ProgramNode) {
+                ProgramNode programNode = (ProgramNode) currentNode;
+                programNode.addDeclarationNode(varDeclNode);
+            } else {
+                statementListStack.peek().add(declStmt);
+            }
         }
 
         currentType = null;
@@ -233,7 +255,8 @@ public class AstBuilder extends MiniCBaseListener {
     public void exitForStatement(MiniCParser.ForStatementContext ctx) {
         List<StatementNode> bodyStatementNodes = statementListStack.pop();
         nodeStack.pop();
-        StatementNode body = bodyStatementNodes.size() == 1 ? bodyStatementNodes.get(0) : new BlockNode(bodyStatementNodes);
+        StatementNode body = bodyStatementNodes.size() == 1 ? bodyStatementNodes.get(0)
+                : new BlockNode(bodyStatementNodes);
         ExpressionNode condition = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         ForNode update = new ForNode(null, condition, null, body);
         List<StatementNode> current = statementListStack.peek();
@@ -242,9 +265,16 @@ public class AstBuilder extends MiniCBaseListener {
 
     @Override
     public void exitAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) {
-        String varName = ctx.lvalue().getText();
         ExpressionNode value = !expressionStack.isEmpty() ? expressionStack.pop() : null;
-        AssignmentNode assignmentNode = new AssignmentNode(varName, value);
+
+        ExpressionNode target = !expressionStack.isEmpty() ? expressionStack.pop() : null;
+
+        if (target == null) {
+            System.err.println("ERROR: No se encontró target para asignación: " + ctx.lvalue().getText());
+            target = new VariableNode("ERROR_" + ctx.lvalue().getText());
+        }
+
+        AssignmentNode assignmentNode = new AssignmentNode(target, value);
 
         AstNode currentNode = nodeStack.peek();
         if (currentNode instanceof FunctionNode || currentNode instanceof BlockNode) {
@@ -299,7 +329,8 @@ public class AstBuilder extends MiniCBaseListener {
         } else if (ctx.FALSE() != null) {
             expressionStack.push(new BooleanNode(false));
         } else if (ctx.lvalue() != null) {
-        } else if (ctx.LPAREN() != null && ctx.expression() != null) {;
+        } else if (ctx.LPAREN() != null && ctx.expression() != null) {
+            ;
         }
     }
 
@@ -316,60 +347,75 @@ public class AstBuilder extends MiniCBaseListener {
         }
         expressionStack.push(new FunctionCallNode(funcName, args));
     }
-//Funcion
-@Override
-public void exitLvalue(MiniCParser.LvalueContext ctx) {
-    if (ctx.Identifier() != null && ctx.LBRACK() == null && ctx.STAR() == null) {
-        String varName = ctx.Identifier().getText();
-        if (!varName.contains("[")) {
-            expressionStack.push(new VariableNode(varName));
-        }
-        return;
-    }
-
-    if (ctx.lvalue() != null && ctx.LBRACK() != null && ctx.expression() != null) {
-        ExpressionNode index = expressionStack.pop();
-        ExpressionNode base = expressionStack.pop();
-        
-        if (base instanceof ArrayAccessNode) {
-            ArrayAccessNode existing = (ArrayAccessNode) base;
-            List<ExpressionNode> newIndices = new ArrayList<>(existing.getIndices());
-            newIndices.add(index);
-            expressionStack.push(new ArrayAccessNode(existing.getArray(), newIndices));
-        } else {
-            List<ExpressionNode> indices = new ArrayList<>();
-            indices.add(index);
-            expressionStack.push(new ArrayAccessNode(base, indices));
-        }
-    }
-}
 
     @Override
-public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
+    public void exitLvalue(MiniCParser.LvalueContext ctx) {
 
-    if (ctx.unaryExpression().size() <= 1) {
-        return;
+        if (ctx.Identifier() != null && ctx.LBRACK() == null && ctx.STAR() == null) {
+            String varName = ctx.Identifier().getText();
+            expressionStack.push(new VariableNode(varName));
+            return;
+        }
+
+        if (ctx.LBRACK() != null && ctx.expression() != null) {
+
+            ExpressionNode index = expressionStack.pop();
+
+            ExpressionNode base;
+            if (!expressionStack.isEmpty()) {
+                base = expressionStack.pop();
+            } else {
+                base = new VariableNode("error");
+            }
+
+            if (base instanceof ArrayAccessNode) {
+                ArrayAccessNode existing = (ArrayAccessNode) base;
+                List<ExpressionNode> newIndices = new ArrayList<>(existing.getIndices());
+                newIndices.add(index);
+                ArrayAccessNode newNode = new ArrayAccessNode(existing.getArray(), newIndices);
+                expressionStack.push(newNode);
+            } else {
+                List<ExpressionNode> indices = new ArrayList<>();
+                indices.add(index);
+                ArrayAccessNode newNode = new ArrayAccessNode(base, indices);
+                expressionStack.push(newNode);
+            }
+            return;
+        }
+
+        if (ctx.STAR() != null && ctx.expression() != null) {
+            if (!expressionStack.isEmpty()) {
+                ExpressionNode expr = expressionStack.pop();
+                expressionStack.push(new UnaryOpNode("*", expr));
+            }
+        }
     }
 
-    List<ExpressionNode> operands = new ArrayList<>();
-    List<String> operators = new ArrayList<>();
+    @Override
+    public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
 
-    for (int i = 0; i < ctx.unaryExpression().size(); i++) {
-        operands.add(0, expressionStack.pop());
+        if (ctx.unaryExpression().size() <= 1) {
+            return;
+        }
+
+        List<ExpressionNode> operands = new ArrayList<>();
+        List<String> operators = new ArrayList<>();
+
+        for (int i = 0; i < ctx.unaryExpression().size(); i++) {
+            operands.add(0, expressionStack.pop());
+        }
+
+        for (int i = 1; i < ctx.getChildCount(); i += 2) {
+            operators.add(ctx.getChild(i).getText());
+        }
+
+        ExpressionNode result = operands.get(0);
+        for (int i = 0; i < operators.size(); i++) {
+            result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
+        }
+
+        expressionStack.push(result);
     }
-
-    for (int i = 1; i < ctx.getChildCount(); i += 2) {
-        operators.add(ctx.getChild(i).getText());
-    }
-
-    ExpressionNode result = operands.get(0);
-    for (int i = 0; i < operators.size(); i++) {
-        result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
-    }
-
-    expressionStack.push(result);
-}
-
 
     @Override
     public void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) {
@@ -382,7 +428,8 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                 }
             }
             for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
+                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class,
+                        i);
                 if (node != null) {
                     String symbol = node.getText();
                     if (symbol.equals("+") || symbol.equals("-")) {
@@ -394,26 +441,27 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
-            
+
             expressionStack.push(result);
         }
     }
 
     @Override
     public void exitRelationalExpression(MiniCParser.RelationalExpressionContext ctx) {
-        
+
         if (ctx.additiveExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
             List<String> operators = new ArrayList<>();
-            
+
             for (int i = 0; i < ctx.additiveExpression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
                     operands.add(0, expressionStack.pop());
                 }
             }
-            
+
             for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
+                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class,
+                        i);
                 if (node != null) {
                     String symbol = node.getText();
                     if (symbol.equals("<") || symbol.equals(">") || symbol.equals("<=") || symbol.equals(">=")) {
@@ -421,31 +469,32 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                     }
                 }
             }
-            
+
             ExpressionNode result = operands.get(0);
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
-            
+
             expressionStack.push(result);
         }
     }
 
     @Override
     public void exitEqualityExpression(MiniCParser.EqualityExpressionContext ctx) {
-        
+
         if (ctx.relationalExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
             List<String> operators = new ArrayList<>();
-            
+
             for (int i = 0; i < ctx.relationalExpression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
                     operands.add(0, expressionStack.pop());
                 }
             }
-            
+
             for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
+                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class,
+                        i);
                 if (node != null) {
                     String symbol = node.getText();
                     if (symbol.equals("==") || symbol.equals("!=")) {
@@ -453,31 +502,32 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                     }
                 }
             }
-            
+
             ExpressionNode result = operands.get(0);
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
-            
+
             expressionStack.push(result);
         }
     }
 
     @Override
     public void exitLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) {
-        
+
         if (ctx.equalityExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
             List<String> operators = new ArrayList<>();
-            
+
             for (int i = 0; i < ctx.equalityExpression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
                     operands.add(0, expressionStack.pop());
                 }
             }
-            
+
             for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
+                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class,
+                        i);
                 if (node != null) {
                     String symbol = node.getText();
                     if (symbol.equals("&&")) {
@@ -485,31 +535,32 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                     }
                 }
             }
-            
+
             ExpressionNode result = operands.get(0);
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
-            
+
             expressionStack.push(result);
         }
     }
 
     @Override
     public void exitLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) {
-        
+
         if (ctx.logicalAndExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
             List<String> operators = new ArrayList<>();
-            
+
             for (int i = 0; i < ctx.logicalAndExpression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
                     operands.add(0, expressionStack.pop());
                 }
             }
-            
+
             for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
+                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class,
+                        i);
                 if (node != null) {
                     String symbol = node.getText();
                     if (symbol.equals("||")) {
@@ -517,25 +568,23 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                     }
                 }
             }
-            
+
             ExpressionNode result = operands.get(0);
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
-            
+
             expressionStack.push(result);
         }
     }
 
     @Override
     public void exitUnaryExpression(MiniCParser.UnaryExpressionContext ctx) {
-        
+
         if (ctx.NOT() != null || ctx.MINUS() != null || ctx.AMP() != null || ctx.STAR() != null) {
             if (!expressionStack.isEmpty()) {
                 ExpressionNode operand = expressionStack.pop();
-                String operator = ctx.NOT() != null ? "!" : 
-                                 ctx.MINUS() != null ? "-" : 
-                                 ctx.AMP() != null ? "&" : "*";
+                String operator = ctx.NOT() != null ? "!" : ctx.MINUS() != null ? "-" : ctx.AMP() != null ? "&" : "*";
                 expressionStack.push(new UnaryOpNode(operator, operand));
             }
         }

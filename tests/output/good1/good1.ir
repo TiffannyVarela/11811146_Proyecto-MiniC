@@ -1,0 +1,19 @@
+; ============ CÓDIGO IR GENERADO ============
+
+; === DECLARACIONES GLOBALES ===
+
+; === FUNCIONES ===
+
+FUNCTION main: int
+LOCAL x: int
+LOCAL y: int
+t0 = 5
+y = t0
+LOCAL z: int
+t1 = x
+t2 = y
+t3 = t1 + t2
+z = t3
+t4 = 0
+RETURN t4
+ENDFUNC main
