@@ -1,0 +1,141 @@
+// ===========================================
+// ÁRBOL DE PARSE - MiniC Compiler
+// Generado: 2025-12-17T19:29:53.680793800
+// ===========================================
+
+└── [program]
+    ├── [function definition]
+    │   ├── [type specifier]
+    │   │   └── 'int'
+    │   ├── ID: 'main'
+    │   ├── OP: '('
+    │   ├── OP: ')'
+    │   └── [compound statement]
+    │       ├── OP: '{'
+    │       ├── [declaration]
+    │       │   ├── [type specifier]
+    │       │   │   └── 'int'
+    │       │   ├── [init declarator list]
+    │       │   │   └── [init declarator]
+    │       │   │       ├── ID: 'arr'
+    │       │   │       ├── OP: '['
+    │       │   │       ├── INT: 50
+    │       │   │       └── OP: ']'
+    │       │   └── OP: ';'
+    │       ├── [statement]
+    │       │   └── [assignment statement]
+    │       │       ├── [lvalue]
+    │       │       │   ├── [lvalue]
+    │       │       │   │   └── ID: 'arr'
+    │       │       │   ├── OP: '['
+    │       │       │   ├── [expression]
+    │       │       │   │   └── [logical or expression]
+    │       │       │   │       └── [logical and expression]
+    │       │       │   │           └── [equality expression]
+    │       │       │   │               └── [relational expression]
+    │       │       │   │                   └── [additive expression]
+    │       │       │   │                       ├── [multiplicative expression]
+    │       │       │   │                       │   ├── [unary expression]
+    │       │       │   │                       │   │   └── [postfix expression]
+    │       │       │   │                       │   │       └── [primary expression]
+    │       │       │   │                       │   │           └── INT: 2
+    │       │       │   │                       │   ├── OP: '*'
+    │       │       │   │                       │   └── [unary expression]
+    │       │       │   │                       │       └── [postfix expression]
+    │       │       │   │                       │           └── [primary expression]
+    │       │       │   │                       │               └── INT: 5
+    │       │       │   │                       ├── OP: '+'
+    │       │       │   │                       └── [multiplicative expression]
+    │       │       │   │                           └── [unary expression]
+    │       │       │   │                               └── [postfix expression]
+    │       │       │   │                                   └── [primary expression]
+    │       │       │   │                                       └── INT: 3
+    │       │       │   └── OP: ']'
+    │       │       ├── OP: '='
+    │       │       ├── [expression]
+    │       │       │   └── [logical or expression]
+    │       │       │       └── [logical and expression]
+    │       │       │           └── [equality expression]
+    │       │       │               └── [relational expression]
+    │       │       │                   └── [additive expression]
+    │       │       │                       └── [multiplicative expression]
+    │       │       │                           └── [unary expression]
+    │       │       │                               └── [postfix expression]
+    │       │       │                                   └── [primary expression]
+    │       │       │                                       └── INT: 42
+    │       │       └── OP: ';'
+    │       ├── [statement]
+    │       │   └── [expression statement]
+    │       │       ├── [expression]
+    │       │       │   └── [logical or expression]
+    │       │       │       └── [logical and expression]
+    │       │       │           └── [equality expression]
+    │       │       │               └── [relational expression]
+    │       │       │                   └── [additive expression]
+    │       │       │                       └── [multiplicative expression]
+    │       │       │                           └── [unary expression]
+    │       │       │                               └── [postfix expression]
+    │       │       │                                   └── [call expression]
+    │       │       │                                       ├── ID: 'print_int'
+    │       │       │                                       ├── OP: '('
+    │       │       │                                       ├── [argument list]
+    │       │       │                                       │   └── [expression]
+    │       │       │                                       │       └── [logical or expression]
+    │       │       │                                       │           └── [logical and expression]
+    │       │       │                                       │               └── [equality expression]
+    │       │       │                                       │                   └── [relational expression]
+    │       │       │                                       │                       └── [additive expression]
+    │       │       │                                       │                           └── [multiplicative expression]
+    │       │       │                                       │                               └── [unary expression]
+    │       │       │                                       │                                   └── [postfix expression]
+    │       │       │                                       │                                       └── [primary expression]
+    │       │       │                                       │                                           └── [lvalue]
+    │       │       │                                       │                                               ├── [lvalue]
+    │       │       │                                       │                                               │   └── ID: 'arr'
+    │       │       │                                       │                                               ├── OP: '['
+    │       │       │                                       │                                               ├── [expression]
+    │       │       │                                       │                                               │   └── [logical or expression]
+    │       │       │                                       │                                               │       └── [logical and expression]
+    │       │       │                                       │                                               │           └── [equality expression]
+    │       │       │                                       │                                               │               └── [relational expression]
+    │       │       │                                       │                                               │                   └── [additive expression]
+    │       │       │                                       │                                               │                       ├── [multiplicative expression]
+    │       │       │                                       │                                               │                       │   ├── [unary expression]
+    │       │       │                                       │                                               │                       │   │   └── [postfix expression]
+    │       │       │                                       │                                               │                       │   │       └── [primary expression]
+    │       │       │                                       │                                               │                       │   │           └── INT: 2
+    │       │       │                                       │                                               │                       │   ├── OP: '*'
+    │       │       │                                       │                                               │                       │   └── [unary expression]
+    │       │       │                                       │                                               │                       │       └── [postfix expression]
+    │       │       │                                       │                                               │                       │           └── [primary expression]
+    │       │       │                                       │                                               │                       │               └── INT: 5
+    │       │       │                                       │                                               │                       ├── OP: '+'
+    │       │       │                                       │                                               │                       └── [multiplicative expression]
+    │       │       │                                       │                                               │                           └── [unary expression]
+    │       │       │                                       │                                               │                               └── [postfix expression]
+    │       │       │                                       │                                               │                                   └── [primary expression]
+    │       │       │                                       │                                               │                                       └── INT: 3
+    │       │       │                                       │                                               └── OP: ']'
+    │       │       │                                       └── OP: ')'
+    │       │       └── OP: ';'
+    │       ├── [statement]
+    │       │   └── [return statement]
+    │       │       ├── 'return'
+    │       │       ├── [expression]
+    │       │       │   └── [logical or expression]
+    │       │       │       └── [logical and expression]
+    │       │       │           └── [equality expression]
+    │       │       │               └── [relational expression]
+    │       │       │                   └── [additive expression]
+    │       │       │                       └── [multiplicative expression]
+    │       │       │                           └── [unary expression]
+    │       │       │                               └── [postfix expression]
+    │       │       │                                   └── [primary expression]
+    │       │       │                                       └── INT: 0
+    │       │       └── OP: ';'
+    │       └── OP: '}'
+    └── OP: '<EOF>'
+
+// ===========================================
+// FIN DEL ÁRBOL
+// ===========================================

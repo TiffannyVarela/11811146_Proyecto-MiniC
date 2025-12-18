@@ -21,19 +21,27 @@ main:
   move $fp, $sp
   addiu $sp, $sp, -8
   # === Process parameters ===
-  li $t0, 2
+  li $t0, 11
   sw $t0, -16($fp)
-  li $t0, 4
+  li $t0, 2
   sw $t0, -20($fp)
-  li $t0, 2
-  sw $t0, -24($fp)
-  li $t0, 5
-  sw $t0, -28($fp)
-  li $t0, 2
-  sw $t0, -32($fp)
-  li $t0, 2
-  sw $t0, -36($fp)
-  li $t0, 2
+  lw $t0, -12($fp)
+  li $t1, 11
+  mul $t2, $t0, $t1
+  sw $t2, -24($fp)
+  li $t2, 20
+  sw $t2, -28($fp)
+  li $t2, 6
+  sw $t2, -32($fp)
+  lw $t2, -24($fp)
+  li $t1, 20
+  addu $t0, $t2, $t1
+  li $t1, 2
+  mul $t2, $t0, $t1
+  sw $t2, -36($fp)
+  li $t2, 8
+  lw $t1, -36($fp)
+  addu $t0, $t2, $t1
   move $v0, $t0
 
   # === EPILOGUE ===

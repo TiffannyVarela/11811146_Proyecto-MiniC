@@ -85,7 +85,7 @@ forStatement
     ;
 
 forInit
-    : expressionStatement
+    : expression
     | declaration
     ;
 
@@ -105,12 +105,17 @@ returnStatement
     : RETURN expression? SEMI
     ;
 
+assignmentExpression
+    : lvalue ASSIGN expression
+    ;
+
 expressionStatement
     : expression? SEMI
     ;
 
 expression
-    : logicalOrExpression
+    : assignmentExpression
+    |logicalOrExpression
     ;
 
 logicalOrExpression

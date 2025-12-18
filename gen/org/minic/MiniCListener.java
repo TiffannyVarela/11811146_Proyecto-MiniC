@@ -210,6 +210,16 @@ public interface MiniCListener extends ParseTreeListener {
 	 */
 	void exitReturnStatement(MiniCParser.ReturnStatementContext ctx);
 	/**
+	 * Enter a parse tree produced by {@link MiniCParser#assignmentExpression}.
+	 * @param ctx the parse tree
+	 */
+	void enterAssignmentExpression(MiniCParser.AssignmentExpressionContext ctx);
+	/**
+	 * Exit a parse tree produced by {@link MiniCParser#assignmentExpression}.
+	 * @param ctx the parse tree
+	 */
+	void exitAssignmentExpression(MiniCParser.AssignmentExpressionContext ctx);
+	/**
 	 * Enter a parse tree produced by {@link MiniCParser#expressionStatement}.
 	 * @param ctx the parse tree
 	 */

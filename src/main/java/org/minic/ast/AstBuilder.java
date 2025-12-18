@@ -15,7 +15,7 @@ public class AstBuilder extends MiniCBaseListener {
     private Stack<AstNode> nodeStack = new Stack<>();
     private Stack<List<StatementNode>> statementListStack = new Stack<>();
     private String currentType = null;
-    private Stack<ExpressionNode> expressionStack = new Stack<>(); // Pila para expresiones
+    private Stack<ExpressionNode> expressionStack = new Stack<>();
     
     public AstNode build(org.antlr.v4.runtime.tree.ParseTree tree) {
         ParseTreeWalker walker = new ParseTreeWalker();
@@ -349,54 +349,65 @@ public class AstBuilder extends MiniCBaseListener {
         System.out.println("AST BUILDER: Llamada a función: " + funcName);
     }
 
-    @Override
-    public void enterLvalue(MiniCParser.LvalueContext ctx) {
-        System.out.println("AST BUILDER: Lvalue: " + ctx.getText());
-        if (ctx.Identifier() != null) {
-            String varName = ctx.Identifier().getText();
-            expressionStack.push(new VariableNode(varName));
-            System.out.println("AST BUILDER: Variable: " + varName);
+@Override
+public void exitLvalue(MiniCParser.LvalueContext ctx) {
+
+    if (ctx.Identifier() != null && ctx.LBRACK() == null) {
+        expressionStack.push(new VariableNode(ctx.Identifier().getText()));
+        return;
+    }
+
+    if (ctx.LBRACK() != null) {
+        ExpressionNode index = (ExpressionNode) expressionStack.pop();
+        ExpressionNode base  = (ExpressionNode) expressionStack.pop();
+
+        if (base instanceof ArrayAccessNode) {
+            ArrayAccessNode prev = (ArrayAccessNode) base;
+            List<ExpressionNode> newIndices = new ArrayList<>(prev.getIndices());
+            newIndices.add(index);
+
+            expressionStack.push(new ArrayAccessNode(prev.getArray(), newIndices));
+        } else {
+            List<ExpressionNode> indices = new ArrayList<>();
+            indices.add(index);
+            expressionStack.push(new ArrayAccessNode(base, indices));
         }
     }
+}
+
+
+
 
     // Métodos para construir operaciones binarias
     @Override
-    public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitMultiplicativeExpression: " + ctx.getText());
-        
-        // Si hay operadores, construir nodos binarios
-        if (ctx.unaryExpression().size() > 1) {
-            List<ExpressionNode> operands = new ArrayList<>();
-            List<String> operators = new ArrayList<>();
-            
-            // Recolectar operandos de la pila (en orden inverso)
-            for (int i = 0; i < ctx.unaryExpression().size(); i++) {
-                if (!expressionStack.isEmpty()) {
-                    operands.add(0, expressionStack.pop());
-                }
-            }
-            
-            // Recolectar operadores
-            for (int i = 0; i < ctx.getChildCount(); i++) {
-                org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
-                if (node != null) {
-                    String symbol = node.getText();
-                    if (symbol.equals("*") || symbol.equals("/") || symbol.equals("%")) {
-                        operators.add(symbol);
-                    }
-                }
-            }
-            
-            // Construir árbol binario asociativo por la izquierda
-            ExpressionNode result = operands.get(0);
-            for (int i = 0; i < operators.size(); i++) {
-                result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
-            }
-            
-            expressionStack.push(result);
-            System.out.println("AST BUILDER: MultiplicativeExpression construida");
-        }
+public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
+
+    if (ctx.unaryExpression().size() <= 1) {
+        // No hay operador (* / %)
+        return;
     }
+
+    List<ExpressionNode> operands = new ArrayList<>();
+    List<String> operators = new ArrayList<>();
+
+    // operandos
+    for (int i = 0; i < ctx.unaryExpression().size(); i++) {
+        operands.add(0, expressionStack.pop());
+    }
+
+    // operadores
+    for (int i = 1; i < ctx.getChildCount(); i += 2) {
+        operators.add(ctx.getChild(i).getText());
+    }
+
+    ExpressionNode result = operands.get(0);
+    for (int i = 0; i < operators.size(); i++) {
+        result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
+    }
+
+    expressionStack.push(result);
+}
+
 
     @Override
     public void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) {
