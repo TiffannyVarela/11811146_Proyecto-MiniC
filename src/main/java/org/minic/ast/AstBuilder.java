@@ -316,25 +316,26 @@ public class AstBuilder extends MiniCBaseListener {
         }
         expressionStack.push(new FunctionCallNode(funcName, args));
     }
-
+//Funcion
 @Override
 public void exitLvalue(MiniCParser.LvalueContext ctx) {
-
-    if (ctx.Identifier() != null && ctx.LBRACK() == null) {
-        expressionStack.push(new VariableNode(ctx.Identifier().getText()));
+    if (ctx.Identifier() != null && ctx.LBRACK() == null && ctx.STAR() == null) {
+        String varName = ctx.Identifier().getText();
+        if (!varName.contains("[")) {
+            expressionStack.push(new VariableNode(varName));
+        }
         return;
     }
 
-    if (ctx.LBRACK() != null) {
-        ExpressionNode index = (ExpressionNode) expressionStack.pop();
-        ExpressionNode base  = (ExpressionNode) expressionStack.pop();
-
+    if (ctx.lvalue() != null && ctx.LBRACK() != null && ctx.expression() != null) {
+        ExpressionNode index = expressionStack.pop();
+        ExpressionNode base = expressionStack.pop();
+        
         if (base instanceof ArrayAccessNode) {
-            ArrayAccessNode prev = (ArrayAccessNode) base;
-            List<ExpressionNode> newIndices = new ArrayList<>(prev.getIndices());
+            ArrayAccessNode existing = (ArrayAccessNode) base;
+            List<ExpressionNode> newIndices = new ArrayList<>(existing.getIndices());
             newIndices.add(index);
-
-            expressionStack.push(new ArrayAccessNode(prev.getArray(), newIndices));
+            expressionStack.push(new ArrayAccessNode(existing.getArray(), newIndices));
         } else {
             List<ExpressionNode> indices = new ArrayList<>();
             indices.add(index);

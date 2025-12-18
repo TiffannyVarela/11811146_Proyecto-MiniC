@@ -75,7 +75,6 @@ public class ErrorManager {
             return;
         }
 
-        // Dividir por líneas
         String[] lines = sourceText.split("\r?\n", -1);
 
         if (line > 0 && line <= lines.length) {
@@ -86,7 +85,6 @@ public class ErrorManager {
 
             int pointerPos = Math.min(column - 1, errorLine.length());
 
-            // Mostrar puntero
             StringBuilder pointer = new StringBuilder("  ");
             for (int i = 0; i < pointerPos; i++) {
                 pointer.append(" ");
@@ -95,7 +93,6 @@ public class ErrorManager {
             System.err.println(pointer.toString());
 
         } else {
-            // Línea fuera de rango
             System.err.println(error.getMessage());
         }
     }

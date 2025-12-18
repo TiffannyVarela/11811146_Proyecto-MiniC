@@ -294,25 +294,74 @@ public Void visit(VarDeclNode node) {
 
     @Override
     public Void visit(StatementNode node) { return null; }
-
+//Funcion
 @Override
 public Void visit(ArrayAccessNode node) {
     ExpressionNode arrayExpr = node.getArray();
-    String arrayType = getExpressionType(arrayExpr);
-
-    if (!arrayType.endsWith("[]")) {
-        addError(
-            arrayExpr instanceof VariableNode ? ((VariableNode) arrayExpr).getLine() : 0,
-            arrayExpr instanceof VariableNode ? ((VariableNode) arrayExpr).getColumn() : 0,
-            "La expresión no es un arreglo"
-        );
+    
+    String arrayName;
+    int line = 0;
+    int column = 0;
+    
+    if (arrayExpr instanceof VariableNode) {
+        arrayName = ((VariableNode) arrayExpr).getName();
+        line = ((VariableNode) arrayExpr).getLine();
+        column = ((VariableNode) arrayExpr).getColumn();
+    } else if (arrayExpr instanceof ArrayAccessNode) {
+        ExpressionNode baseExpr = arrayExpr;
+        while (baseExpr instanceof ArrayAccessNode) {
+            baseExpr = ((ArrayAccessNode) baseExpr).getArray();
+        }
+        
+        if (baseExpr instanceof VariableNode) {
+            arrayName = ((VariableNode) baseExpr).getName();
+            line = ((VariableNode) baseExpr).getLine();
+            column = ((VariableNode) baseExpr).getColumn();
+        } else {
+            addError(node.getLine(), node.getColumn(), "Acceso inválido a arreglo - no se encontró variable base");
+            return null;
+        }
+    } else {
+        addError(node.getLine(), node.getColumn(), "Acceso inválido a arreglo - expresión base no válida");
+        return null;
     }
+    
+    Symbol symbol = currentScope.lookup(arrayName);
+    
+    if (symbol == null) {
+        addError(line, column, "Variable no declarada: '" + arrayName + "'");
+        return null;
+    }
+    
+    String symbolType = symbol.getType();
+    boolean isArray = symbolType.endsWith("[]");
+    
+    if (!isArray) {
+        addError(line, column, "'" + arrayName + "' no es un arreglo");
+    }
+    
+    int declaredDimensions = 0;
+    String tempType = symbolType;
+    while (tempType.endsWith("[]")) {
+        declaredDimensions++;
+        tempType = tempType.substring(0, tempType.length() - 2);
+    }
+    
+    int accessDimensions = node.getIndices().size();
+    
+    if (accessDimensions > declaredDimensions) {
+        addError(line, column, 
+            "Acceso a demasiadas dimensiones en '" + arrayName + 
+            "'. Declarado: " + declaredDimensions + 
+            ", Accediendo: " + accessDimensions);
+    }
+    
     for (ExpressionNode index : node.getIndices()) {
         String idxType = getExpressionType(index);
         if (!Type.INT.equals(idxType)) {
             addError(
-                index instanceof VariableNode ? ((VariableNode) index).getLine() : 0,
-                index instanceof VariableNode ? ((VariableNode) index).getColumn() : 0,
+                index.getLine(),
+                index.getColumn(),
                 "Índice de arreglo debe ser int, no " + idxType
             );
         }
@@ -375,12 +424,27 @@ public Void visit(ArrayAccessNode node) {
     private String getBinaryOpType(BinaryOpNode binOp) { return Type.INT; }
     private String getUnaryOpType(UnaryOpNode unaryOp) { return Type.INT; }
     private String getFunctionCallType(FunctionCallNode call) { return Type.VOID; }
+//Funcion
     private String getArrayAccessType(ArrayAccessNode node) {
-    String arrayType = getExpressionType(node.getArray());
-    if (arrayType.endsWith("[]")) {
-        return arrayType.substring(0, arrayType.length() - 2);
+    ExpressionNode arrayExpr = node.getArray();
+    String baseType = getExpressionType(arrayExpr);
+    
+    if (baseType == null || baseType.equals(Type.VOID)) {
+        return Type.VOID;
     }
-    return Type.VOID;
+    
+    int accessDimensions = node.getIndices().size();
+    String currentType = baseType;
+    
+    for (int i = 0; i < accessDimensions; i++) {
+        if (currentType.endsWith("[]")) {
+            currentType = currentType.substring(0, currentType.length() - 2);
+        } else {
+            return Type.VOID;
+        }
+    }
+    
+    return currentType;
 }
 
     private String getCastType(CastNode cast) { return cast.getTargetType(); }
