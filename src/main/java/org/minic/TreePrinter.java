@@ -36,6 +36,67 @@ public class TreePrinter {
         System.out.println("  BOOL: true/false: Literal booleano");
         System.out.println("=".repeat(80));
     }
+
+    private static void saveLegend(PrintWriter writer) {
+        writer.println("// ===========================================");
+        writer.println("// LEYENDA");
+        writer.println("// ├── Nodo de regla (no terminal)");
+        writer.println("// └── Token (terminal)");
+        writer.println("// [rule_name]     : Regla del parser");
+        writer.println("// 'literal'       : Palabra reservada u operador");
+        writer.println("// ID: 'nombre'    : Identificador");
+        writer.println("// INT: valor      : Literal entero");
+        writer.println("// CHAR: 'c'       : Literal carácter");
+        writer.println("// STR: \"texto\"   : Literal cadena");
+        writer.println("// BOOL: true/false: Literal booleano");
+        writer.println("// ===========================================");
+    }
+
+    private static void saveStats(ParseTree tree, Parser parser, PrintWriter writer) {
+        if (tree == null) return;
+
+        writer.println();
+        writer.println("// ===========================================");
+        writer.println("// ESTADÍSTICAS DEL ÁRBOL DE PARSE");
+        writer.println("// ===========================================");
+
+        java.util.Map<String, Integer> ruleCounts = new java.util.HashMap<>();
+        java.util.Map<String, Integer> tokenCounts = new java.util.HashMap<>();
+
+        collectStats(tree, parser, ruleCounts, tokenCounts);
+
+        writer.println();
+        writer.println("// NODOS DE REGLAS (no terminales)");
+        writer.println("// -------------------------------------------");
+        ruleCounts.entrySet().stream()
+                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                .forEach(e ->
+                        writer.printf("// %-25s: %3d%n",
+                                formatRuleName(e.getKey()), e.getValue())
+                );
+
+        writer.println();
+        writer.println("// TOKENS (terminales)");
+        writer.println("// -------------------------------------------");
+        tokenCounts.entrySet().stream()
+                .sorted((a, b) -> b.getValue().compareTo(a.getValue()))
+                .forEach(e ->
+                        writer.printf("// %-25s: %3d%n",
+                                e.getKey(), e.getValue())
+                );
+
+        int totalRules = ruleCounts.values().stream().mapToInt(Integer::intValue).sum();
+        int totalTokens = tokenCounts.values().stream().mapToInt(Integer::intValue).sum();
+
+        writer.println();
+        writer.println("// TOTALES");
+        writer.println("// -------------------------------------------");
+        writer.println("// Nodos de reglas : " + totalRules);
+        writer.println("// Tokens          : " + totalTokens);
+        writer.println("// Total de nodos  : " + (totalRules + totalTokens));
+        writer.println("// ===========================================");
+    }
+
    
     public static void saveToFile(ParseTree tree, Parser parser, String outputPath) {
     try {
@@ -71,6 +132,9 @@ public class TreePrinter {
             writer.println("// ===========================================");
             writer.println("// FIN DEL ÁRBOL");
             writer.println("// ===========================================");
+
+            saveLegend(writer);
+            saveStats(tree, parser, writer);
         }
         
         System.out.println("Árbol de parse guardado en: " + outputPath);
@@ -119,7 +183,6 @@ public class TreePrinter {
         String tokenName = parser.getVocabulary().getDisplayName(token.getType());
         String tokenText = token.getText();
         
-        // Filtrar tokens no interesantes
         if (tokenName.equals("WS") || tokenName.equals("LINE_COMMENT") || 
             tokenName.equals("BLOCK_COMMENT")) {
             return;

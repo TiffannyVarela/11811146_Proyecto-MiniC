@@ -106,7 +106,7 @@ public class Compiler {
         TreePrinter.saveToFile(
                 parseTree,
                 parser,
-                outputDir.resolve(baseName + ".tree").toString()
+                outputDir.resolve(baseName + ".txt").toString()
         );
 
         IrGenerator irGenOriginal = new IrGenerator();
