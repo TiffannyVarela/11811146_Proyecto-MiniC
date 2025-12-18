@@ -68,21 +68,137 @@ public class MipsGenerator {
         return code.toString();
     }
 
-    private void initializeSections() {
-        dataSection.add(".data");
-        dataSection.add("newline: .asciiz \"\\n\"");
-        dataSection.add("true_str: .asciiz \"true\"");
-        dataSection.add("false_str: .asciiz \"false\"");
+private void initializeSections() {
+    dataSection.add(".data");
+    dataSection.add("newline: .asciiz \"\\n\"");
+    dataSection.add("true_str: .asciiz \"true\"");
+    dataSection.add("false_str: .asciiz \"false\"");
+    dataSection.add("result_msg: .asciiz \"Result: \"");
+    
+    textSection.add(".text");
+    textSection.add(".globl main, __start, print_int, print_char, print_bool, print_str, println, read_int, read_char, read_str, exit");
+    textSection.add("");
+    
+    addRuntimeFunctions();
+}
 
-        textSection.add(".text");
-        textSection.add(".globl main");
-        textSection.add("");
-
-        // Registrar funciones runtime
-        textSection.add("# =========================================");
-        textSection.add("# RUNTIME FUNCTIONS (provided by runtime.s)");
-        textSection.add("# =========================================");
-    }
+private void addRuntimeFunctions() {
+    textSection.add("# =========================================");
+    textSection.add("# RUNTIME FUNCTIONS");
+    textSection.add("# =========================================");
+    textSection.add("");
+    
+    // Punto de entrada __start
+    textSection.add("__start:");
+    textSection.add("  # === SYSTEM INITIALIZATION ===");
+    textSection.add("  addiu $sp, $sp, -64    # Reservar stack para sistema");
+    textSection.add("  sw $ra, 60($sp)        # Guardar return address");
+    textSection.add("  sw $fp, 56($sp)        # Guardar frame pointer");
+    textSection.add("  move $fp, $sp          # Establecer frame pointer");
+    textSection.add("  ");
+    textSection.add("  # === CALL MAIN ===");
+    textSection.add("  jal main               # Ejecutar programa principal");
+    textSection.add("  ");
+    textSection.add("  # === DISPLAY RESULT ===");
+    textSection.add("  move $t0, $v0          # Guardar resultado");
+    textSection.add("  la $a0, result_msg     # Cargar mensaje 'Result: '");
+    textSection.add("  li $v0, 4              # syscall: print string");
+    textSection.add("  syscall");
+    textSection.add("  move $a0, $t0          # Cargar resultado numérico");
+    textSection.add("  li $v0, 1              # syscall: print integer");
+    textSection.add("  syscall");
+    textSection.add("  la $a0, newline        # Nueva línea");
+    textSection.add("  li $v0, 4");
+    textSection.add("  syscall");
+    textSection.add("  ");
+    textSection.add("  # === EXIT PROGRAM ===");
+    textSection.add("  li $v0, 10             # syscall: exit");
+    textSection.add("  syscall");
+    textSection.add("");
+    
+    // Función print_int
+    textSection.add("print_int:");
+    textSection.add("  move $a0, $a0          # Argumento ya está en $a0");
+    textSection.add("  li $v0, 1              # syscall: print integer");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra                 # Retornar");
+    textSection.add("");
+    
+    // Función print_char
+    textSection.add("print_char:");
+    textSection.add("  move $a0, $a0");
+    textSection.add("  li $v0, 11             # syscall: print character");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función print_bool
+    textSection.add("print_bool:");
+    textSection.add("  beqz $a0, print_false  # Si es 0, imprimir false");
+    textSection.add("  la $a0, true_str       # Cargar 'true'");
+    textSection.add("  li $v0, 4");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("print_false:");
+    textSection.add("  la $a0, false_str      # Cargar 'false'");
+    textSection.add("  li $v0, 4");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función print_str
+    textSection.add("print_str:");
+    textSection.add("  move $a0, $a0");
+    textSection.add("  li $v0, 4");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función println
+    textSection.add("println:");
+    textSection.add("  la $a0, newline");
+    textSection.add("  li $v0, 4");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función read_int
+    textSection.add("read_int:");
+    textSection.add("  li $v0, 5              # syscall: read integer");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función read_char
+    textSection.add("read_char:");
+    textSection.add("  li $v0, 12             # syscall: read character");
+    textSection.add("  syscall");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función read_str (simplificada)
+    textSection.add("read_str:");
+    textSection.add("  addiu $sp, $sp, -8     # Guardar registros");
+    textSection.add("  sw $a0, 0($sp)");
+    textSection.add("  sw $a1, 4($sp)");
+    textSection.add("  move $a0, $a0          # Buffer");
+    textSection.add("  move $a1, $a1          # Máxima longitud");
+    textSection.add("  li $v0, 8              # syscall: read string");
+    textSection.add("  syscall");
+    textSection.add("  lw $a1, 4($sp)         # Restaurar registros");
+    textSection.add("  lw $a0, 0($sp)");
+    textSection.add("  addiu $sp, $sp, 8");
+    textSection.add("  jr $ra");
+    textSection.add("");
+    
+    // Función exit (para uso interno)
+    textSection.add("exit:");
+    textSection.add("  move $a0, $a0          # Código de salida");
+    textSection.add("  li $v0, 17             # syscall: exit2");
+    textSection.add("  syscall");
+    textSection.add("  # No retorna");
+    textSection.add("");
+}
 
     private void collectGlobalSymbols(ProgramNode program) {
         int globalOffset = 0;
@@ -92,16 +208,11 @@ public class MipsGenerator {
                 VarDeclNode varDecl = (VarDeclNode) node;
                 String name = varDecl.getName();
 
-                // Determinar dimensiones del array
                 int arraySize = varDecl.getArraySize();
                 int secondDim = 0;
-
-                // Para arrays 2D, necesitamos detectar ambas dimensiones
                 if (varDecl.isArray() && varDecl.getType().contains("[][]")) {
-                    // Asumimos formato "int[10][5]" o similar
-                    // En una implementación real, necesitarías parsear esto
-                    arraySize = 10; // Valor por defecto
-                    secondDim = 5; // Valor por defecto
+                    arraySize = 10;
+                    secondDim = 5;
                 }
 
                 SymbolInfo info = new SymbolInfo(
@@ -114,26 +225,21 @@ public class MipsGenerator {
                 globalSymbols.put(name, info);
                 globalOffset += info.getTotalSize();
 
-                // Agregar a sección .data
                 String label = "_" + name;
                 if (varDecl.isArray()) {
                     if (secondDim > 0) {
-                        // Array 2D
                         dataSection.add(label + ": .space " + (arraySize * secondDim * 4));
                     } else {
-                        // Array 1D
                         dataSection.add(label + ": .space " + (arraySize * 4));
                     }
                 } else {
                     dataSection.add(label + ": .word 0");
                 }
             }
-            // Las funciones no necesitan procesamiento en collectGlobalSymbols
         }
     }
 
     private void generateProgram(ProgramNode program) {
-        // Generar funciones
         for (AstNode node : program.getDeclarationsNodes()) {
             if (node instanceof FunctionNode) {
                 generateFunction((FunctionNode) node);
@@ -142,60 +248,254 @@ public class MipsGenerator {
     }
 
     private void generateFunction(FunctionNode function) {
-        currentFunction = function.getName();
-        localScopes.clear();
-        localScopes.push(new HashMap<>());
+    currentFunction = function.getName();
+    localScopes.clear();
+    localScopes.push(new HashMap<>());
 
-        textSection.add("");
-        textSection.add("# =========================================");
-        textSection.add("# FUNCTION: " + currentFunction);
-        textSection.add("# =========================================");
-        textSection.add(currentFunction + ":");
+    textSection.add("");
+    textSection.add("# =========================================");
+    textSection.add("# FUNCTION: " + currentFunction);
+    textSection.add("# =========================================");
+    textSection.add(currentFunction + ":");
 
-        // ============ PRÓLOGO (ABI O32) ============
-        textSection.add("  # === PROLOGUE ==="); // Aqui
-
-        // Guardar $ra y $fp
+    textSection.add("  # === PROLOGUE ===");
+    
+    if (function.getName().equals("main")) {
+        textSection.add("  move $fp, $sp          # $fp apunta al tope actual del stack");
+        
+        int localVarSize = calculateLocalVarsSize(function);
+        if (localVarSize < 32) {
+            localVarSize = 32;
+        }
+        localVarSize = ((localVarSize + 7) / 8) * 8;
+        textSection.add("  addiu $sp, $sp, -" + localVarSize + "  # Reservar espacio para variables locales");
+        currentFrameSize = localVarSize;
+        
+        textSection.add("  # Inicializar todas las variables locales a 0");
+        for (int offset = 0; offset < localVarSize; offset += 4) {
+            textSection.add("  sw $zero, " + offset + "($sp)");
+        }
+        
+        initMainOffsets(function);
+        
+        if (function.getBody() != null) {
+            preprocessMainDeclarations(function.getBody());
+        }
+    } else {
         textSection.add("  addiu $sp, $sp, -8");
         textSection.add("  sw $ra, 4($sp)");
         textSection.add("  sw $fp, 0($sp)");
         textSection.add("  move $fp, $sp");
-
-        // Calcular tamaño del frame
+        
         int localVarSize = calculateLocalVarsSize(function);
-        int savedRegSize = 0;
         int paramSize = function.getParameters() != null ? function.getParameters().size() * 4 : 0;
-        currentFrameSize = 8 + paramSize + savedRegSize + localVarSize;
+        currentFrameSize = 8 + paramSize + localVarSize;
         currentFrameSize = ((currentFrameSize + 7) / 8) * 8;
-
-        // Reservar espacio en stack
-        textSection.add("  addiu $sp, $sp, -" + currentFrameSize);
-
-        // Procesar parámetros (ABI O32: primeros 4 en $a0-$a3, resto en stack)
+        
+        textSection.add("  addiu $sp, $sp, -" + (currentFrameSize - 8));
+        
+        initLocalVarOffsets(function);
+        
         if (function.getParameters() != null) {
             processParameters(function.getParameters());
         }
+    }
 
-        // Generar cuerpo
-        if (function.getBody() != null) {
-            generateBlock(function.getBody());
+    if (function.getBody() != null) {
+        generateBlock(function.getBody());
+    }
+    
+    textSection.add("");
+    textSection.add("  # === EPILOGUE ===");
+    
+    if (function.getName().equals("main")) {
+        if (currentFrameSize > 0) {
+            textSection.add("  addiu $sp, $sp, " + currentFrameSize + "  # Liberar variables locales");
         }
-
-        // ============ EPÍLOGO ============
-        textSection.add("");
-        textSection.add("  # === EPILOGUE ==="); // Aqui
-
-        // Restaurar $fp y $ra
+        textSection.add("  jr $ra  # Retorna a __start");
+    } else {
         textSection.add("  move $sp, $fp");
         textSection.add("  lw $fp, 0($sp)");
         textSection.add("  lw $ra, 4($sp)");
         textSection.add("  addiu $sp, $sp, 8");
-
-        // Retornar
         textSection.add("  jr $ra");
-
-        currentFunction = null;
     }
+
+    currentFunction = null;
+}
+
+private void initMainOffsets(FunctionNode function) {
+    if (function.getBody() != null) {
+        int currentOffset = 0;
+        
+        for (StatementNode stmt : function.getBody().getStatements()) {
+            if (stmt instanceof VarDeclStatementNode) {
+                VarDeclNode varDecl = ((VarDeclStatementNode) stmt).getVarDeclNode();
+                
+                int varSize = varDecl.isArray() ? varDecl.getArraySize() * 4 : 4;
+                varSize = ((varSize + 3) / 4) * 4;
+                
+                SymbolInfo info = new SymbolInfo(
+                    varDecl.isArray(),
+                    varDecl.getArraySize(),
+                    0,
+                    currentOffset,
+                    false
+                );
+                
+                localScopes.peek().put(varDecl.getName(), info);
+                currentOffset += varSize;
+            } else if (stmt instanceof BlockNode) {
+                currentOffset = processBlockForOffsets((BlockNode) stmt, currentOffset);
+            }
+        }
+    }
+}
+
+private int processBlockForOffsets(BlockNode block, int startOffset) {
+    int currentOffset = startOffset;
+    
+    for (StatementNode stmt : block.getStatements()) {
+        if (stmt instanceof VarDeclStatementNode) {
+            VarDeclNode varDecl = ((VarDeclStatementNode) stmt).getVarDeclNode();
+            
+            int varSize = varDecl.isArray() ? varDecl.getArraySize() * 4 : 4;
+            varSize = ((varSize + 3) / 4) * 4;
+            
+            SymbolInfo info = new SymbolInfo(
+                varDecl.isArray(),
+                varDecl.getArraySize(),
+                0,
+                currentOffset,
+                false
+            );
+            
+            localScopes.peek().put(varDecl.getName(), info);
+            currentOffset += varSize;
+        } else if (stmt instanceof BlockNode) {
+            localScopes.push(new HashMap<>());
+            currentOffset = processBlockForOffsets((BlockNode) stmt, currentOffset);
+            localScopes.pop();
+        }
+    }
+    
+    return currentOffset;
+}
+
+private void preprocessMainDeclarations(BlockNode block) {
+    for (StatementNode stmt : block.getStatements()) {
+        if (stmt instanceof VarDeclStatementNode) {
+            VarDeclNode varDecl = ((VarDeclStatementNode) stmt).getVarDeclNode();
+            
+            if (varDecl.hasInitialNode()) {
+                String initValue = generateExpression(varDecl.getInitialNode());
+                storeVariableMain(varDecl.getName(), initValue);
+                freeTemp(initValue);
+            }
+        } else if (stmt instanceof BlockNode) {
+            localScopes.push(new HashMap<>());
+            preprocessMainDeclarations((BlockNode) stmt);
+            localScopes.pop();
+        }
+    }
+}
+
+private void storeVariableMain(String varName, String valueReg) {
+    SymbolInfo info = findSymbol(varName);
+    if (info == null) {
+        throw new RuntimeException("Variable no encontrada: " + varName);
+    }
+
+    if (info.isGlobal) {
+        textSection.add("  la $t9, _" + varName);
+        textSection.add("  sw " + valueReg + ", 0($t9)");
+    } else if (currentFunction != null && currentFunction.equals("main")) {
+        textSection.add("  sw " + valueReg + ", " + info.offset + "($sp)");
+    } else {
+        textSection.add("  sw " + valueReg + ", " + info.offset + "($fp)");
+    }
+}
+
+private String loadVariable(String varName) {
+    SymbolInfo info = findSymbol(varName);
+    if (info == null) {
+        throw new RuntimeException("Variable no encontrada: " + varName);
+    }
+
+    String temp = newTemp();
+
+    if (info.isGlobal) {
+        textSection.add("  la $t9, _" + varName);
+        textSection.add("  lw " + temp + ", 0($t9)");
+    } else if (currentFunction != null && currentFunction.equals("main")) {
+        textSection.add("  lw " + temp + ", " + info.offset + "($sp)");
+    } else {
+        textSection.add("  lw " + temp + ", " + info.offset + "($fp)");
+    }
+
+    return temp;
+}
+
+private void initLocalVarOffsets(FunctionNode function) {
+    int offset = -currentFrameSize;
+    
+    if (function.getBody() != null) {
+        initBlockVarOffsets(function.getBody(), offset);
+    }
+}
+
+private void initBlockVarOffsets(BlockNode block, int baseOffset) {
+    int currentOffset = baseOffset;
+    
+    for (StatementNode stmt : block.getStatements()) {
+        if (stmt instanceof VarDeclStatementNode) {
+            VarDeclNode varDecl = ((VarDeclStatementNode) stmt).getVarDeclNode();
+            
+            int varSize = varDecl.isArray() ? varDecl.getArraySize() * 4 : 4;
+            varSize = ((varSize + 3) / 4) * 4; // Alinear a 4 bytes
+            
+            // Asignar offset
+            currentOffset -= varSize;
+            
+            SymbolInfo info = new SymbolInfo(
+                varDecl.isArray(),
+                varDecl.getArraySize(),
+                0,
+                currentOffset,
+                false
+            );
+            
+            localScopes.peek().put(varDecl.getName(), info);
+            
+            // Inicializar si tiene valor inicial
+            if (varDecl.hasInitialNode()) {
+                String initValue = generateExpression(varDecl.getInitialNode());
+                storeVariable(varDecl.getName(), initValue);
+                freeTemp(initValue);
+            }
+        } else if (stmt instanceof BlockNode) {
+            // Para bloques anidados
+            localScopes.push(new HashMap<>());
+            initBlockVarOffsets((BlockNode) stmt, currentOffset);
+            localScopes.pop();
+        }
+    }
+}
+
+private void storeVariable(String varName, String valueReg) {
+    SymbolInfo info = findSymbol(varName);
+    if (info == null) {
+        throw new RuntimeException("Variable no encontrada: " + varName);
+    }
+
+    if (info.isGlobal) {
+        textSection.add("  la $t9, _" + varName);
+        textSection.add("  sw " + valueReg + ", 0($t9)");
+    } else {
+        // Usar $fp para acceder a variables locales
+        textSection.add("  sw " + valueReg + ", " + info.offset + "($fp)");
+    }
+}
 
     private int calculateLocalVarsSize(FunctionNode function) {
         int size = 0;
@@ -471,38 +771,6 @@ public class MipsGenerator {
         String temp = newTemp();
         textSection.add("  li " + temp + ", " + num.getValue());
         return temp;
-    }
-
-    private String loadVariable(String varName) {
-        SymbolInfo info = findSymbol(varName);
-        if (info == null) {
-            throw new RuntimeException("Variable no encontrada: " + varName);
-        }
-
-        String temp = newTemp();
-
-        if (info.isGlobal) {
-            textSection.add("  la $t9, _" + varName);
-            textSection.add("  lw " + temp + ", 0($t9)");
-        } else {
-            textSection.add("  lw " + temp + ", " + info.offset + "($fp)");
-        }
-
-        return temp;
-    }
-
-    private void storeVariable(String varName, String valueReg) {
-        SymbolInfo info = findSymbol(varName);
-        if (info == null) {
-            throw new RuntimeException("Variable no encontrada: " + varName);
-        }
-
-        if (info.isGlobal) {
-            textSection.add("  la $t9, _" + varName);
-            textSection.add("  sw " + valueReg + ", 0($t9)");
-        } else {
-            textSection.add("  sw " + valueReg + ", " + info.offset + "($fp)");
-        }
     }
 
     private SymbolInfo findSymbol(String name) {

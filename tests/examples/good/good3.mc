@@ -12,6 +12,5 @@ int main() {
     // Expresiones anidadas
     int g = ((4 + 2) * 3) - 5; // (6 * 3) - 5 = 18 - 5 = 13
     
-    // Debe optimizarse a: return 87;
-    return c + f + g;          // 22 + 52 + 13 = 87
+    return c + f + g;
 }
