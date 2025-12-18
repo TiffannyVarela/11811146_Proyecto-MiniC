@@ -10,15 +10,10 @@ public class ConstantFolder {
     private static final Map<String, Integer> constants = new HashMap<>();
 
     public static AstNode optimize(AstNode ast) {
-    System.out.println("=== INICIANDO CONSTANT FOLDING ===");
-    System.out.println("HashCode del AST recibido: " + System.identityHashCode(ast));
     constants.clear();
 
     if (ast instanceof ProgramNode program) {
         AstNode result = optimizeProgram(program);
-        System.out.println("HashCode del AST retornado: " + System.identityHashCode(result));
-        System.out.println("¿Mismo objeto? " + (ast == result));
-        System.out.println("=== FIN CONSTANT FOLDING ===");
         return result;
     }
 
@@ -40,7 +35,7 @@ public class ConstantFolder {
     }
 
     private static FunctionNode optimizeFunction(FunctionNode function) {
-        constants.clear(); // nuevo scope
+        constants.clear();
 
         BlockNode optimizedBody = optimizeBlock(function.getBody());
 
@@ -128,7 +123,6 @@ public class ConstantFolder {
 
     private static ExpressionNode optimizeExpression(ExpressionNode expr) {
 
-        // PROPAGACIÓN
         if (expr instanceof VariableNode var) {
             if (constants.containsKey(var.getName())) {
                 return new NumberNode(constants.get(var.getName()));

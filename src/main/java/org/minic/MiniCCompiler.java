@@ -106,31 +106,21 @@ public class MiniCCompiler {
 
     Path filePath = Paths.get(testFile);
     
-    // Leer el archivo COMPLETO primero para ErrorManager
     String sourceText = Files.readString(filePath);
     ErrorManager.setSourceText(sourceText);
-    
-    // Luego crear el CharStream
     CharStream input = CharStreams.fromString(sourceText, filePath.toString());
-
-    ErrorManager.cleanErrors(); // Limpiar aquí también por seguridad
-
+    ErrorManager.cleanErrors();
     System.out.println("Análisis léxico...");
     MiniCLexer lexer = new MiniCLexer(input);
     CommonTokenStream tokens = new CommonTokenStream(lexer);
-
     System.out.println("Análisis sintáctico...");
     MiniCParser parser = new MiniCParser(tokens);
-
     parser.removeErrorListeners();
     lexer.removeErrorListeners();
-    
     SyntaxErrorListener syntaxErrorListener = new SyntaxErrorListener();
     parser.addErrorListener(syntaxErrorListener);
     lexer.addErrorListener(syntaxErrorListener);
-
     ParseTree tree = parser.program();
-
     if (ErrorManager.hasErrors()) {
         ErrorManager.throwIfErrors();
         return;
@@ -154,10 +144,8 @@ public class MiniCCompiler {
         TreePrinter.printToConsole(tree, parser);
         TreePrinter.printStats(tree, parser);
     }
-
     System.out.println("Compilación completada para: " + testFile);
 }
-
     public static void compileTestFile(String testFile) throws Exception {
         compileTestFile(testFile, false, false, null);
     }

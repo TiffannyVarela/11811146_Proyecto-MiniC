@@ -39,8 +39,6 @@ public class SemanticChecker implements AstVisitor<Void> {
 
         if (ast instanceof ProgramNode) {
             this.currentProgram = (ProgramNode) ast;
-
-            // Registrar funciones primero para evitar forward references
             for (AstNode child : currentProgram.getDeclarationsNodes()) {
                 if (child instanceof FunctionNode) {
                     visitFunctionDecl((FunctionNode) child);
@@ -105,9 +103,7 @@ public class SemanticChecker implements AstVisitor<Void> {
 public Void visit(VarDeclNode node) {
     String name = node.getName();
     String type = node.getType();
-
-    // Si es arreglo, almacenar como tipo[] en el símbolo
-    if (node.isArray()) {   // suponiendo que VarDeclNode tiene isArray()
+    if (node.isArray()) {
         type += "[]";
     }
 
@@ -281,7 +277,6 @@ public Void visit(VarDeclNode node) {
     public Void visit(StringNode node) { return null; }
     @Override
     public Void visit(BooleanNode node) { return null; }
-
     @Override
     public Void visit(DeclarationNode node) { return null; }
     @Override
@@ -302,9 +297,8 @@ public Void visit(VarDeclNode node) {
 
 @Override
 public Void visit(ArrayAccessNode node) {
-    // Revisar que el array exista
     ExpressionNode arrayExpr = node.getArray();
-    String arrayType = getExpressionType(arrayExpr);  // tipo de arr
+    String arrayType = getExpressionType(arrayExpr);
 
     if (!arrayType.endsWith("[]")) {
         addError(
@@ -313,8 +307,6 @@ public Void visit(ArrayAccessNode node) {
             "La expresión no es un arreglo"
         );
     }
-
-    // Revisar índices
     for (ExpressionNode index : node.getIndices()) {
         String idxType = getExpressionType(index);
         if (!Type.INT.equals(idxType)) {
@@ -357,8 +349,6 @@ public Void visit(ArrayAccessNode node) {
     @Override
     public Void visit(ArrayDimensionsNode node) { return null; }
 
-    // ------------------- Funciones auxiliares -------------------
-
     private String getExpressionType(ExpressionNode expr) {
         if (expr instanceof NumberNode) return Type.INT;
         if (expr instanceof BooleanNode) return Type.BOOLEAN;
@@ -393,7 +383,6 @@ public Void visit(ArrayAccessNode node) {
     return Type.VOID;
 }
 
-
     private String getCastType(CastNode cast) { return cast.getTargetType(); }
 
     private void addError(String message) { ErrorManager.addError(message); }
@@ -401,7 +390,6 @@ public Void visit(ArrayAccessNode node) {
     private void addError(int line, int column, String message) {
     ErrorManager.addError(line, column, message);
 }
-
 
     private void collectGlobalDeclarations(ProgramNode program) {
         globalDeclarations.clear();
@@ -448,7 +436,6 @@ public Void visit(ArrayAccessNode node) {
     }
 
     private void checkUnusedGlobalVariables() {
-        // Placeholder: puedes implementar búsqueda recursiva
     }
 
     private void checkMainFunction() {

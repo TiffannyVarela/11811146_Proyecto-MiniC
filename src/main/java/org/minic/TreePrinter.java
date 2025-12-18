@@ -40,21 +40,21 @@ public class TreePrinter {
     public static void saveToFile(ParseTree tree, Parser parser, String outputPath) {
     try {
         if (tree == null || parser == null || outputPath == null) {
-            System.err.println("✗ No se puede guardar árbol: parámetros inválidos");
+            System.err.println("No se puede guardar árbol: parámetros inválidos");
             return;
         }
         
         Path path = Paths.get(outputPath);
         
         if (ErrorManager.hasErrors()) {
-            System.err.println("✗ No se guarda árbol porque hay errores de compilación");
+            System.err.println("No se guarda árbol porque hay errores de compilación");
             return;
         }
         
         try {
             Files.createDirectories(path.getParent());
         } catch (Exception e) {
-            System.err.println("✗ No se pudo crear directorio: " + e.getMessage());
+            System.err.println("No se pudo crear directorio: " + e.getMessage());
             return;
         }
         
@@ -73,10 +73,10 @@ public class TreePrinter {
             writer.println("// ===========================================");
         }
         
-        System.out.println("✓ Árbol de parse guardado en: " + outputPath);
+        System.out.println("Árbol de parse guardado en: " + outputPath);
         
     } catch (Exception e) {
-        System.err.println("✗ Error guardando árbol: " + e.getMessage());
+        System.err.println("Error guardando árbol: " + e.getMessage());
     }
 }
 
@@ -124,8 +124,6 @@ public class TreePrinter {
             tokenName.equals("BLOCK_COMMENT")) {
             return;
         }
-        
-        // Formatear según el tipo de token
         switch (tokenName) {
             case "Identifier":
                 System.out.println("ID: '" + tokenText + "'");
@@ -134,13 +132,11 @@ public class TreePrinter {
                 System.out.println("INT: " + tokenText);
                 break;
             case "CharConstant":
-                // Remover comillas simples
                 String charContent = tokenText.length() > 2 ? 
                     tokenText.substring(1, tokenText.length() - 1) : tokenText;
                 System.out.println("CHAR: '" + charContent + "'");
                 break;
             case "StringLiteral":
-                // Remover comillas dobles
                 String strContent = tokenText.length() > 2 ? 
                     tokenText.substring(1, tokenText.length() - 1) : tokenText;
                 System.out.println("STR: \"" + strContent + "\"");
@@ -150,7 +146,6 @@ public class TreePrinter {
                 System.out.println("BOOL: " + tokenText.toLowerCase());
                 break;
             default:
-                // Para palabras reservadas y operadores
                 if (tokenText.matches("[a-zA-Z_][a-zA-Z0-9_]*")) {
                     System.out.println("'" + tokenText + "'");
                 } else {
@@ -164,13 +159,11 @@ public class TreePrinter {
         String tokenName = parser.getVocabulary().getDisplayName(token.getType());
         String tokenText = token.getText();
         
-        // Filtrar tokens no interesantes
         if (tokenName.equals("WS") || tokenName.equals("LINE_COMMENT") || 
             tokenName.equals("BLOCK_COMMENT")) {
             return;
         }
         
-        // Formatear según el tipo de token
         switch (tokenName) {
             case "Identifier":
                 writer.println("ID: '" + tokenText + "'");
@@ -206,7 +199,6 @@ public class TreePrinter {
             RuleContext ctx = (RuleContext) tree;
             String ruleName = parser.getRuleNames()[ctx.getRuleIndex()];
             
-            // Hacer más legibles los nombres de reglas
             String displayName = formatRuleName(ruleName);
             System.out.println("[" + displayName + "]");
         }
@@ -222,7 +214,6 @@ public class TreePrinter {
     }
     
     private static String formatRuleName(String ruleName) {
-        // Convertir de camelCase a palabras separadas
         StringBuilder formatted = new StringBuilder();
         
         for (int i = 0; i < ruleName.length(); i++) {
@@ -284,7 +275,6 @@ public class TreePrinter {
             Token token = node.getSymbol();
             String tokenName = parser.getVocabulary().getDisplayName(token.getType());
             
-            // Ignorar espacios y comentarios
             if (!tokenName.equals("WS") && !tokenName.equals("LINE_COMMENT") && 
                 !tokenName.equals("BLOCK_COMMENT")) {
                 tokenCounts.put(tokenName, tokenCounts.getOrDefault(tokenName, 0) + 1);
@@ -294,7 +284,6 @@ public class TreePrinter {
             String ruleName = parser.getRuleNames()[ctx.getRuleIndex()];
             ruleCounts.put(ruleName, ruleCounts.getOrDefault(ruleName, 0) + 1);
             
-            // Recursivamente procesar hijos
             for (int i = 0; i < tree.getChildCount(); i++) {
                 collectStats(tree.getChild(i), parser, ruleCounts, tokenCounts);
             }

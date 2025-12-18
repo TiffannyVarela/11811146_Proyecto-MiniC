@@ -8,7 +8,6 @@ public class IrGenerator {
     private int tempCount;
     private int labelCount;
     
-    // Tabla de símbolos para temporales
     private Map<String, String> tempMap;
     
     public IrGenerator() {
@@ -23,9 +22,7 @@ public class IrGenerator {
         tempCount = 0;
         labelCount = 0;
         
-        // Cabecera del código IR
         irCode.add("; ============ CÓDIGO IR GENERADO ============");
-        irCode.add("; Generado por MiniC Compiler");
         irCode.add("");
         
         if (ast instanceof ProgramNode) {
@@ -38,7 +35,6 @@ public class IrGenerator {
     private void generateProgram(ProgramNode program) {
         irCode.add("; === DECLARACIONES GLOBALES ===");
         
-        // Procesar declaraciones globales
         for (AstNode node : program.getChildren()) {
             if (node instanceof VarDeclNode) {
                 generateGlobalVar((VarDeclNode) node);
@@ -47,8 +43,6 @@ public class IrGenerator {
         
         irCode.add("");
         irCode.add("; === FUNCIONES ===");
-        
-        // Procesar funciones
         for (AstNode node : program.getChildren()) {
             if (node instanceof FunctionNode) {
                 generateFunction((FunctionNode) node);
@@ -75,7 +69,6 @@ public class IrGenerator {
         irCode.add("");
         irCode.add("FUNCTION " + funcName + ": " + returnType);
         
-        // Parámetros
         if (function.getParameters() != null && !function.getParameters().isEmpty()) {
             StringBuilder params = new StringBuilder("PARAMS: ");
             for (VarDeclNode param : function.getParameters()) {
@@ -84,7 +77,6 @@ public class IrGenerator {
             irCode.add(params.toString());
         }
         
-        // Cuerpo de la función
         if (function.getBody() != null) {
             generateBlock(function.getBody());
         }
@@ -98,17 +90,14 @@ public class IrGenerator {
     }
 
     private void generateBlock(BlockNode block) {
-        System.out.println("IR GENERATOR: Número de statements: " + block.getStatements().size());
         
         for (int i = 0; i < block.getStatements().size(); i++) {
             StatementNode stmt = block.getStatements().get(i);
-            System.out.println("IR GENERATOR: Statement " + i + ": " + stmt.getClass().getSimpleName());
             generateStatement(stmt);
         }
     }
     
     private void generateStatement(StatementNode stmt) {
-        System.out.println("IR GENERATOR: generateStatement called for: " + stmt.getClass().getSimpleName());
         
         if (stmt instanceof ExpressionStatementNode) {
             generateExpressionStatement((ExpressionStatementNode) stmt);
@@ -129,19 +118,15 @@ public class IrGenerator {
         } else if (stmt instanceof VarDeclStatementNode) {
             generateVarDeclStatement((VarDeclStatementNode) stmt);
         } else {
-            System.out.println("IR GENERATOR: Unknown statement type: " + stmt.getClass().getSimpleName());
         }
     }
 
     private void generateVarDeclStatement(VarDeclStatementNode varDeclStmt) {
-        System.out.println("IR GENERATOR: Nombre: " + varDeclStmt.getVarDeclNode().getName());
-        System.out.println("IR GENERATOR: Tiene inicialización: " + varDeclStmt.getVarDeclNode().hasInitialNode());
         
         VarDeclNode varDecl = varDeclStmt.getVarDeclNode();
         String varName = varDecl.getName();
         String type = varDecl.getType();
         
-        // Generar declaración local
         if (varDecl.isArray()) {
             irCode.add("LOCAL " + varName + ": array[" + type + ", " + varDecl.getArraySize() + "]");
         } else {
@@ -149,12 +134,10 @@ public class IrGenerator {
         }
         
         if (varDecl.hasInitialNode()) {
-            System.out.println("IR GENERATOR: Generando inicialización para " + varName);
             String initValue = generateExpression(varDecl.getInitialNode());
             irCode.add(varName + " = " + initValue);
             freeTemp(initValue);
         } else {
-            System.out.println("IR GENERATOR: " + varName + " NO tiene inicialización");
         }
     }
 
@@ -223,7 +206,6 @@ public class IrGenerator {
     }
 
     private void generateForStatement(ForNode forStmt) {
-        // Inicialización
         if (forStmt.getInit() != null) {
             generateStatement(forStmt.getInit());
         }
@@ -233,17 +215,13 @@ public class IrGenerator {
 
         irCode.add(startLabel + ":");
 
-        // Condición
         if (forStmt.getCondition() != null) {
             String condition = generateExpression(forStmt.getCondition());
             irCode.add("IF " + condition + " == 0 GOTO " + endLabel);
             freeTemp(condition);
         }
 
-        // Cuerpo
         generateStatement(forStmt.getBody());
-
-        // Incremento
         if (forStmt.getIncrement() != null) {
             String increment = generateExpression(forStmt.getIncrement());
             freeTemp(increment);
@@ -313,8 +291,6 @@ public class IrGenerator {
             return generateArrayAccess((ArrayAccessNode) expr);
         }
 
-        
-        // Fallback
         String temp = newTemp();
         irCode.add(temp + " = 0");
         return temp;
@@ -390,8 +366,6 @@ public class IrGenerator {
                 freeTemp(temp);
             }
         }
-
-        // Asumimos que solo las funciones no-void se usan en expresiones
         String result = newTemp();
         irCode.add(result + " = CALL " + funcName + " " + args.toString().trim());
         return result;
@@ -408,7 +382,6 @@ public class IrGenerator {
     private String generateString(StringNode stringNode) {
         String temp = newTemp();
         String value = stringNode.getValue();
-        // Escapar comillas para el IR
         String escapedValue = value.replace("\"", "\\\"");
         irCode.add(temp + " = \"" + escapedValue + "\"");
         return temp;
@@ -423,7 +396,7 @@ public class IrGenerator {
 
     private String newTemp() {
         String temp = "t" + tempCount++;
-        tempMap.put(temp, "int"); // Asumimos tipo int por defecto
+        tempMap.put(temp, "int");
         return temp;
     }
 
@@ -455,7 +428,6 @@ public class IrGenerator {
 }
 
     private String generateArrayAccess(ArrayAccessNode arrayAccess) {
-        // Generar el arreglo base (normalmente un identificador)
         ExpressionNode arrayExpr = arrayAccess.getArray();
         String arrayName;
 
@@ -464,12 +436,9 @@ public class IrGenerator {
         } else if (arrayExpr instanceof VariableNode) {
             arrayName = ((VariableNode) arrayExpr).getName();
         } else {
-            // Caso raro, pero defendible
             String tempArray = generateExpression(arrayExpr);
             arrayName = tempArray;
         }
-
-        // MiniC: solo una dimensión
         ExpressionNode indexExpr = arrayAccess.getIndices().get(0);
         String indexTemp = generateExpression(indexExpr);
 

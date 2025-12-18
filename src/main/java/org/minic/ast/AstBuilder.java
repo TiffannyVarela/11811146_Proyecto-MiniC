@@ -42,7 +42,6 @@ public class AstBuilder extends MiniCBaseListener {
 
     @Override
     public void enterDeclaration(MiniCParser.DeclarationContext ctx) {
-        System.out.println("=== AST BUILDER: Procesando declaración ===");
 
         if (ctx.functionDeclaration() != null) {
             handleFunctionDeclaration(ctx.functionDeclaration());
@@ -55,8 +54,6 @@ public class AstBuilder extends MiniCBaseListener {
     private void handleFunctionDeclaration(MiniCParser.FunctionDeclarationContext funcDeclCtx) {
         String returnType = funcDeclCtx.typeSpecifier().getText();
         String funcName = funcDeclCtx.Identifier().getText();
-
-        System.out.println("AST BUILDER: Prototipo de función: " + returnType + " " + funcName + "()");
 
         List<VarDeclNode> parameters = null;
         if (funcDeclCtx.parameterList() != null) {
@@ -74,7 +71,6 @@ public class AstBuilder extends MiniCBaseListener {
         if (currentNode instanceof ProgramNode) {
             ProgramNode programNode = (ProgramNode) currentNode;
             programNode.addDeclarationNode(funcNode);
-            System.out.println("AST BUILDER: Agregado prototipo de función GLOBAL: " + returnType + " " + funcName);
         }
     }
 
@@ -99,18 +95,12 @@ public class AstBuilder extends MiniCBaseListener {
                 }
             }
 
-            // Procesar inicialización
             ExpressionNode initialNode = null;
             if (initDeclCtx.ASSIGN() != null && initDeclCtx.expression() != null) {
-                // La expresión ya está en la pila
                 if (!expressionStack.isEmpty()) {
                     initialNode = expressionStack.pop();
-                    System.out.println("AST BUILDER: Inicialización para " + varName + ": " + 
-                        initialNode.getClass().getSimpleName());
                 }
             }
-
-            // Crear VarDeclNode con la inicialización incluida
             VarDeclNode varDeclNode = new VarDeclNode(currentType, varName, isArray, arraySize, secondDimension, initialNode);
             VarDeclStatementNode declStmt = new VarDeclStatementNode(varDeclNode);
             statementListStack.peek().add(declStmt);
@@ -147,7 +137,6 @@ public class AstBuilder extends MiniCBaseListener {
 
         FunctionNode functionNode = (FunctionNode) nodeStack.pop();
         functionNode.setBody(body);
-        System.out.println("AST BUILDER: BlockNode creado con " + body.getStatements().size() + " statements");
     }
 
     @Override
@@ -164,7 +153,6 @@ public class AstBuilder extends MiniCBaseListener {
         }
     }
 
-    // ----------------- If / While / DoWhile / For -----------------
     @Override
     public void enterIfStatement(MiniCParser.IfStatementContext ctx) {
         IfNode ifNode = new IfNode(null, null, null);
@@ -189,7 +177,6 @@ public class AstBuilder extends MiniCBaseListener {
                 }
             }
         }
-        // La expresión condicional está en la pila
         ExpressionNode condition = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         IfNode updatedIfNode = new IfNode(condition, (BlockNode) thenBlock, (BlockNode) elseBlock);
         List<StatementNode> currentStatements = statementListStack.peek();
@@ -209,7 +196,6 @@ public class AstBuilder extends MiniCBaseListener {
         List<StatementNode> bodyStatements = statementListStack.pop();
         nodeStack.pop();
         StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
-        // La expresión condicional está en la pila
         ExpressionNode condition = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         WhileNode updateWhileNode = new WhileNode(condition, body);
         List<StatementNode> currentStatements = statementListStack.peek();
@@ -229,7 +215,6 @@ public class AstBuilder extends MiniCBaseListener {
         List<StatementNode> bodyStatements = statementListStack.pop();
         nodeStack.pop();
         StatementNode body = bodyStatements.size() == 1 ? bodyStatements.get(0) : new BlockNode(bodyStatements);
-        // La expresión condicional está en la pila
         ExpressionNode condition = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         DoWhileNode update = new DoWhileNode(body, condition);
         List<StatementNode> current = statementListStack.peek();
@@ -249,18 +234,15 @@ public class AstBuilder extends MiniCBaseListener {
         List<StatementNode> bodyStatementNodes = statementListStack.pop();
         nodeStack.pop();
         StatementNode body = bodyStatementNodes.size() == 1 ? bodyStatementNodes.get(0) : new BlockNode(bodyStatementNodes);
-        // La expresión condicional está en la pila
         ExpressionNode condition = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         ForNode update = new ForNode(null, condition, null, body);
         List<StatementNode> current = statementListStack.peek();
         current.set(current.size() - 1, update);
     }
 
-    // ----------------- Assignments / Return / Expression -----------------
     @Override
     public void exitAssignmentStatement(MiniCParser.AssignmentStatementContext ctx) {
         String varName = ctx.lvalue().getText();
-        // El valor está en la pila
         ExpressionNode value = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         AssignmentNode assignmentNode = new AssignmentNode(varName, value);
 
@@ -270,13 +252,11 @@ public class AstBuilder extends MiniCBaseListener {
         } else if (currentNode instanceof ProgramNode) {
             statementListStack.peek().add(assignmentNode);
         }
-        System.out.println("AST BUILDER: Asignación agregada: " + varName);
     }
 
     @Override
     public void enterExpressionStatement(MiniCParser.ExpressionStatementContext ctx) {
         if (ctx.expression() != null) {
-            // La expresión está en la pila
             ExpressionNode expr = !expressionStack.isEmpty() ? expressionStack.pop() : null;
             ExpressionStatementNode expressionStatementNode = new ExpressionStatementNode(expr);
             AstNode currentNode = nodeStack.peek();
@@ -290,7 +270,6 @@ public class AstBuilder extends MiniCBaseListener {
 
     @Override
     public void exitReturnStatement(MiniCParser.ReturnStatementContext ctx) {
-        // El valor de retorno está en la pila
         ExpressionNode returnValue = !expressionStack.isEmpty() ? expressionStack.pop() : null;
         ReturnNode returnNode = new ReturnNode(returnValue);
 
@@ -300,36 +279,27 @@ public class AstBuilder extends MiniCBaseListener {
         } else if (currentNode instanceof ProgramNode) {
             statementListStack.peek().add(returnNode);
         }
-        System.out.println("AST BUILDER: Return agregado");
     }
 
-    // ----------------- Expresiones -----------------
     @Override
     public void enterPrimaryExpression(MiniCParser.PrimaryExpressionContext ctx) {
-        System.out.println("AST BUILDER: PrimaryExpression: " + ctx.getText());
         if (ctx.IntegerConstant() != null) {
             int value = Integer.parseInt(ctx.IntegerConstant().getText());
             expressionStack.push(new NumberNode(value));
-            System.out.println("AST BUILDER: Número: " + value);
         } else if (ctx.CharConstant() != null) {
             String text = ctx.CharConstant().getText();
             char value = text.length() > 2 ? text.charAt(1) : '\0';
             expressionStack.push(new CharNode(value));
-            System.out.println("AST BUILDER: Carácter: " + value);
         } else if (ctx.StringLiteral() != null) {
             String text = ctx.StringLiteral().getText();
             String value = text.length() > 2 ? text.substring(1, text.length() - 1) : "";
             expressionStack.push(new StringNode(value));
-            System.out.println("AST BUILDER: String: " + value);
         } else if (ctx.TRUE() != null) {
             expressionStack.push(new BooleanNode(true));
         } else if (ctx.FALSE() != null) {
             expressionStack.push(new BooleanNode(false));
         } else if (ctx.lvalue() != null) {
-            System.out.println("AST BUILDER: Lvalue en PrimaryExpression");
-        } else if (ctx.LPAREN() != null && ctx.expression() != null) {
-            // La expresión entre paréntesis ya está en la pila
-            System.out.println("AST BUILDER: Expresión entre paréntesis");
+        } else if (ctx.LPAREN() != null && ctx.expression() != null) {;
         }
     }
 
@@ -337,16 +307,14 @@ public class AstBuilder extends MiniCBaseListener {
     public void enterCallExpression(MiniCParser.CallExpressionContext ctx) {
         String funcName = ctx.Identifier().getText();
         List<ExpressionNode> args = new ArrayList<>();
-        // Los argumentos están en la pila en orden inverso
         if (ctx.argumentList() != null) {
             for (int i = 0; i < ctx.argumentList().expression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
-                    args.add(0, expressionStack.pop()); // Invertir orden
+                    args.add(0, expressionStack.pop());
                 }
             }
         }
         expressionStack.push(new FunctionCallNode(funcName, args));
-        System.out.println("AST BUILDER: Llamada a función: " + funcName);
     }
 
 @Override
@@ -375,27 +343,20 @@ public void exitLvalue(MiniCParser.LvalueContext ctx) {
     }
 }
 
-
-
-
-    // Métodos para construir operaciones binarias
     @Override
 public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
 
     if (ctx.unaryExpression().size() <= 1) {
-        // No hay operador (* / %)
         return;
     }
 
     List<ExpressionNode> operands = new ArrayList<>();
     List<String> operators = new ArrayList<>();
 
-    // operandos
     for (int i = 0; i < ctx.unaryExpression().size(); i++) {
         operands.add(0, expressionStack.pop());
     }
 
-    // operadores
     for (int i = 1; i < ctx.getChildCount(); i += 2) {
         operators.add(ctx.getChild(i).getText());
     }
@@ -411,21 +372,14 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
 
     @Override
     public void exitAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitAdditiveExpression: " + ctx.getText());
-        
-        // Si hay operadores, construir nodos binarios
         if (ctx.multiplicativeExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
             List<String> operators = new ArrayList<>();
-            
-            // Recolectar operandos de la pila (en orden inverso)
             for (int i = 0; i < ctx.multiplicativeExpression().size(); i++) {
                 if (!expressionStack.isEmpty()) {
                     operands.add(0, expressionStack.pop());
                 }
             }
-            
-            // Recolectar operadores
             for (int i = 0; i < ctx.getChildCount(); i++) {
                 org.antlr.v4.runtime.tree.TerminalNode node = ctx.getChild(org.antlr.v4.runtime.tree.TerminalNode.class, i);
                 if (node != null) {
@@ -435,21 +389,17 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                     }
                 }
             }
-            
-            // Construir árbol binario asociativo por la izquierda
             ExpressionNode result = operands.get(0);
             for (int i = 0; i < operators.size(); i++) {
                 result = new BinaryOpNode(operators.get(i), result, operands.get(i + 1));
             }
             
             expressionStack.push(result);
-            System.out.println("AST BUILDER: AdditiveExpression construida");
         }
     }
 
     @Override
     public void exitRelationalExpression(MiniCParser.RelationalExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitRelationalExpression: " + ctx.getText());
         
         if (ctx.additiveExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
@@ -477,13 +427,11 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
             }
             
             expressionStack.push(result);
-            System.out.println("AST BUILDER: RelationalExpression construida");
         }
     }
 
     @Override
     public void exitEqualityExpression(MiniCParser.EqualityExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitEqualityExpression: " + ctx.getText());
         
         if (ctx.relationalExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
@@ -511,13 +459,11 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
             }
             
             expressionStack.push(result);
-            System.out.println("AST BUILDER: EqualityExpression construida");
         }
     }
 
     @Override
     public void exitLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitLogicalAndExpression: " + ctx.getText());
         
         if (ctx.equalityExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
@@ -545,13 +491,11 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
             }
             
             expressionStack.push(result);
-            System.out.println("AST BUILDER: LogicalAndExpression construida");
         }
     }
 
     @Override
     public void exitLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitLogicalOrExpression: " + ctx.getText());
         
         if (ctx.logicalAndExpression().size() > 1) {
             List<ExpressionNode> operands = new ArrayList<>();
@@ -579,60 +523,11 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
             }
             
             expressionStack.push(result);
-            System.out.println("AST BUILDER: LogicalOrExpression construida");
         }
     }
 
     @Override
-    public void exitExpression(MiniCParser.ExpressionContext ctx) {
-        System.out.println("AST BUILDER: Exit Expression, stack size: " + expressionStack.size());
-        // La expresión final queda en la pila, lista para ser usada
-    }
-
-    // ----------------- Otros -----------------
-    @Override
-    public void enterAdditiveExpression(MiniCParser.AdditiveExpressionContext ctx) {
-        System.out.println("AST BUILDER: AdditiveExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterMultiplicativeExpression(MiniCParser.MultiplicativeExpressionContext ctx) {
-        System.out.println("AST BUILDER: MultiplicativeExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterRelationalExpression(MiniCParser.RelationalExpressionContext ctx) {
-        System.out.println("AST BUILDER: RelationalExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterEqualityExpression(MiniCParser.EqualityExpressionContext ctx) {
-        System.out.println("AST BUILDER: EqualityExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterLogicalAndExpression(MiniCParser.LogicalAndExpressionContext ctx) {
-        System.out.println("AST BUILDER: LogicalAndExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterLogicalOrExpression(MiniCParser.LogicalOrExpressionContext ctx) {
-        System.out.println("AST BUILDER: LogicalOrExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterUnaryExpression(MiniCParser.UnaryExpressionContext ctx) {
-        System.out.println("AST BUILDER: UnaryExpression: " + ctx.getText());
-    }
-
-    @Override
-    public void enterPostfixExpression(MiniCParser.PostfixExpressionContext ctx) {
-        System.out.println("AST BUILDER: PostfixExpression: " + ctx.getText());
-    }
-
-    @Override
     public void exitUnaryExpression(MiniCParser.UnaryExpressionContext ctx) {
-        System.out.println("AST BUILDER: exitUnaryExpression: " + ctx.getText());
         
         if (ctx.NOT() != null || ctx.MINUS() != null || ctx.AMP() != null || ctx.STAR() != null) {
             if (!expressionStack.isEmpty()) {
@@ -641,7 +536,6 @@ public void exitMultiplicativeExpression(MiniCParser.MultiplicativeExpressionCon
                                  ctx.MINUS() != null ? "-" : 
                                  ctx.AMP() != null ? "&" : "*";
                 expressionStack.push(new UnaryOpNode(operator, operand));
-                System.out.println("AST BUILDER: UnaryOpNode creado: " + operator);
             }
         }
     }

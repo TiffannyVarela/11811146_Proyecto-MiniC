@@ -13,7 +13,6 @@ public class ErrorManager {
 
     public static void setSourceText(String text) {
         sourceText = text;
-        // DEBUG: Verificar que tenemos el texto
         if (!text.isEmpty()) {
             String[] lines = text.split("\r?\n", -1);
             for (int i = 0; i < Math.min(lines.length, 5); i++) {

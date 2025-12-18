@@ -45,8 +45,6 @@ public class Compiler {
         try {
             ErrorManager.cleanErrors();
 
-            System.out.println("\nCompilando desde cadena de código...");
-
             String baseName = (fileName != null && !fileName.isEmpty())
                     ? fileName.replace(".mc", "")
                     : "string_code_" + System.currentTimeMillis();
@@ -114,58 +112,28 @@ public class Compiler {
         IrGenerator irGenOriginal = new IrGenerator();
         List<String> irOriginal = irGenOriginal.generate(ast);
         
-        System.out.println("=== IR ORIGINAL (REAL) ===");
-        for (String line : irOriginal) {
-            System.out.println(line);
-        }
-        
-        // Guardar el IR ORIGINAL SIEMPRE
         Files.write(
             outputDir.resolve(baseName + ".ir"),
             irOriginal
         );
-
-        // Ahora procesamos optimizaciones si están habilitadas
         AstNode processedAst = ast;
         List<String> irProcessed = irOriginal;
 
         if (optimize) {
             System.out.println("=== INICIANDO OPTIMIZACIÓN ===");
-            
-            // DEBUG
-            System.out.println("HashCode del AST antes de optimizar: " + System.identityHashCode(ast));
-
             processedAst = ConstantFolder.optimize(ast);
-            
-            // DEBUG
-            System.out.println("HashCode del AST después de optimizar: " + System.identityHashCode(processedAst));
-            System.out.println("¿Son el mismo objeto? " + (ast == processedAst));
-
-            // Generar IR del AST optimizado
             IrGenerator irGenOptimized = new IrGenerator();
             irProcessed = irGenOptimized.generate(processedAst);
-            
-            // DEBUG: Mostrar el IR procesado
-            System.out.println("=== IR PROCESADO (OPTIMIZADO) ===");
-            for (String line : irProcessed) {
-                System.out.println(line);
-            }
-
-            // Guardar el IR OPTIMIZADO solo si se pide dumpIr
             if (dumpIr) {
                 Files.write(
                     outputDir.resolve(baseName + "_opt.ir"),
                     irProcessed
                 );
-                
-                // Mostrar comparación
                 printIrComparison(irOriginal, irProcessed);
             }
 
             System.out.println("=== FIN OPTIMIZACIÓN ===");
         }
-
-        // Generar MIPS desde el AST procesado
         if (generateMips) {
             MipsGenerator mipsGenerator = new MipsGenerator();
             String mipsCode = mipsGenerator.generate(processedAst);
@@ -176,7 +144,7 @@ public class Compiler {
             );
         }
 
-        System.out.println("✔ Compilación finalizada correctamente");
+        System.out.println("Compilación finalizada correctamente");
 
     } catch (Exception e) {
         throw new CompilationException("Error durante compilación", e);

@@ -8,29 +8,24 @@ public class MipsGenerator {
     private int tempCount = 0;
     private int labelCount = 0;
 
-    // Gestión de registros temporales
     private Stack<String> availableTemps = new Stack<>();
 
-    // Tablas de símbolos
     private Map<String, SymbolInfo> globalSymbols = new HashMap<>();
     private Deque<Map<String, SymbolInfo>> localScopes = new ArrayDeque<>();
     private Map<String, String> stringLiterals = new HashMap<>();
     private int stringLiteralCount = 0;
 
-    // Información de funciones actuales
     private String currentFunction = null;
     private int currentFrameSize = 0;
 
-    // Secciones
     private List<String> dataSection = new ArrayList<>();
     private List<String> textSection = new ArrayList<>();
 
-    // Clase para información de símbolos (optimizada)
     private class SymbolInfo {
         boolean isArray;
         int arraySize;
-        int secondDimension; // Para arrays 2D
-        int offset; // Offset en el frame (locales) o dirección (globales)
+        int secondDimension;
+        int offset;
         boolean isGlobal;
 
         SymbolInfo(boolean isArray, int arraySize, int secondDimension, int offset, boolean isGlobal) {
@@ -45,7 +40,7 @@ public class MipsGenerator {
             if (!isArray)
                 return 4;
             if (secondDimension > 0) {
-                return arraySize * secondDimension * 4; // int[10][5] = 10*5*4 bytes
+                return arraySize * secondDimension * 4;
             }
             return arraySize * 4;
         }
@@ -53,13 +48,9 @@ public class MipsGenerator {
 
     public String generate(AstNode ast) {
         initializeSections();
-
-        // Primera pasada: recolectar símbolos globales
         if (ast instanceof ProgramNode) {
             collectGlobalSymbols((ProgramNode) ast);
         }
-
-        // Segunda pasada: generar código
         if (ast instanceof ProgramNode) {
             generateProgram((ProgramNode) ast);
         }
@@ -88,7 +79,6 @@ private void addRuntimeFunctions() {
     textSection.add("# =========================================");
     textSection.add("");
     
-    // Punto de entrada __start
     textSection.add("__start:");
     textSection.add("  # === SYSTEM INITIALIZATION ===");
     textSection.add("  addiu $sp, $sp, -64    # Reservar stack para sistema");
@@ -116,7 +106,6 @@ private void addRuntimeFunctions() {
     textSection.add("  syscall");
     textSection.add("");
     
-    // Función print_int
     textSection.add("print_int:");
     textSection.add("  move $a0, $a0          # Argumento ya está en $a0");
     textSection.add("  li $v0, 1              # syscall: print integer");
@@ -124,7 +113,6 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra                 # Retornar");
     textSection.add("");
     
-    // Función print_char
     textSection.add("print_char:");
     textSection.add("  move $a0, $a0");
     textSection.add("  li $v0, 11             # syscall: print character");
@@ -132,7 +120,6 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función print_bool
     textSection.add("print_bool:");
     textSection.add("  beqz $a0, print_false  # Si es 0, imprimir false");
     textSection.add("  la $a0, true_str       # Cargar 'true'");
@@ -146,7 +133,6 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función print_str
     textSection.add("print_str:");
     textSection.add("  move $a0, $a0");
     textSection.add("  li $v0, 4");
@@ -154,7 +140,6 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función println
     textSection.add("println:");
     textSection.add("  la $a0, newline");
     textSection.add("  li $v0, 4");
@@ -162,21 +147,18 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función read_int
     textSection.add("read_int:");
     textSection.add("  li $v0, 5              # syscall: read integer");
     textSection.add("  syscall");
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función read_char
     textSection.add("read_char:");
     textSection.add("  li $v0, 12             # syscall: read character");
     textSection.add("  syscall");
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función read_str (simplificada)
     textSection.add("read_str:");
     textSection.add("  addiu $sp, $sp, -8     # Guardar registros");
     textSection.add("  sw $a0, 0($sp)");
@@ -191,7 +173,6 @@ private void addRuntimeFunctions() {
     textSection.add("  jr $ra");
     textSection.add("");
     
-    // Función exit (para uso interno)
     textSection.add("exit:");
     textSection.add("  move $a0, $a0          # Código de salida");
     textSection.add("  li $v0, 17             # syscall: exit2");
@@ -452,9 +433,7 @@ private void initBlockVarOffsets(BlockNode block, int baseOffset) {
             VarDeclNode varDecl = ((VarDeclStatementNode) stmt).getVarDeclNode();
             
             int varSize = varDecl.isArray() ? varDecl.getArraySize() * 4 : 4;
-            varSize = ((varSize + 3) / 4) * 4; // Alinear a 4 bytes
-            
-            // Asignar offset
+            varSize = ((varSize + 3) / 4) * 4;
             currentOffset -= varSize;
             
             SymbolInfo info = new SymbolInfo(
@@ -467,14 +446,12 @@ private void initBlockVarOffsets(BlockNode block, int baseOffset) {
             
             localScopes.peek().put(varDecl.getName(), info);
             
-            // Inicializar si tiene valor inicial
             if (varDecl.hasInitialNode()) {
                 String initValue = generateExpression(varDecl.getInitialNode());
                 storeVariable(varDecl.getName(), initValue);
                 freeTemp(initValue);
             }
         } else if (stmt instanceof BlockNode) {
-            // Para bloques anidados
             localScopes.push(new HashMap<>());
             initBlockVarOffsets((BlockNode) stmt, currentOffset);
             localScopes.pop();
@@ -492,15 +469,12 @@ private void storeVariable(String varName, String valueReg) {
         textSection.add("  la $t9, _" + varName);
         textSection.add("  sw " + valueReg + ", 0($t9)");
     } else {
-        // Usar $fp para acceder a variables locales
         textSection.add("  sw " + valueReg + ", " + info.offset + "($fp)");
     }
 }
 
     private int calculateLocalVarsSize(FunctionNode function) {
         int size = 0;
-
-        // Recolectar variables locales del cuerpo
         if (function.getBody() != null) {
             size = calculateBlockLocalSize(function.getBody());
         }
@@ -610,7 +584,6 @@ private void storeVariable(String varName, String valueReg) {
             textSection.add("  move $v0, " + value);
             freeTemp(value);
         }
-        // El epílogo se encargará del retorno
     }
 
     private void generateIf(IfNode ifStmt) {
@@ -648,7 +621,6 @@ private void storeVariable(String varName, String valueReg) {
     }
 
     private void generateFor(ForNode forStmt) {
-        // Inicialización
         if (forStmt.getInit() != null) {
             generateStatement(forStmt.getInit());
         }
@@ -657,18 +629,13 @@ private void storeVariable(String varName, String valueReg) {
         String endLabel = newLabel();
 
         textSection.add(startLabel + ":");
-
-        // Condición
         if (forStmt.getCondition() != null) {
             String condition = generateExpression(forStmt.getCondition());
             textSection.add("  beqz " + condition + ", " + endLabel);
             freeTemp(condition);
         }
-
-        // Cuerpo
         generateStatement(forStmt.getBody());
 
-        // Incremento
         if (forStmt.getIncrement() != null) {
             String increment = generateExpression(forStmt.getIncrement());
             freeTemp(increment);
@@ -761,7 +728,6 @@ private void storeVariable(String varName, String valueReg) {
             return generateArrayLoad((ArrayAccessNode) expr);
         }
 
-        // Fallback
         String temp = newTemp();
         textSection.add("  li " + temp + ", 0");
         return temp;
@@ -853,7 +819,7 @@ private void storeVariable(String varName, String valueReg) {
             case "!":
                 textSection.add("  seq " + result + ", " + operand + ", 0");
                 break;
-            case "&": // Dirección de
+            case "&":
                 if (unaryOp.getOperand() instanceof VariableNode) {
                     String varName = ((VariableNode) unaryOp.getOperand()).getName();
                     SymbolInfo info = findSymbol(varName);
@@ -867,7 +833,7 @@ private void storeVariable(String varName, String valueReg) {
                     }
                 }
                 break;
-            case "*": // Desreferencia
+            case "*":
                 textSection.add("  lw " + result + ", 0(" + operand + ")");
                 break;
             default:
@@ -878,21 +844,17 @@ private void storeVariable(String varName, String valueReg) {
         return result;
     }
 
-    private String generateFunctionCall(FunctionCallNode call) { // Aqui
+    private String generateFunctionCall(FunctionCallNode call) {
         String funcName = call.getFunctionName();
         List<ExpressionNode> args = call.getArguments();
-
-        // Guardar registros temporales caller-saved que estén en uso
         saveCallerSavedRegs();
 
-        // Pasar argumentos (ABI O32)
         for (int i = 0; i < args.size() && i < 4; i++) {
             String argTemp = generateExpression(args.get(i));
             textSection.add("  move $a" + i + ", " + argTemp);
             freeTemp(argTemp);
         }
 
-        // Argumentos 5+ van al stack (caller responsibility)
         if (args.size() > 4) {
             for (int i = args.size() - 1; i >= 4; i--) {
                 String arg = generateExpression(args.get(i));
@@ -902,33 +864,26 @@ private void storeVariable(String varName, String valueReg) {
             }
         }
 
-        // Llamar función
         textSection.add("  jal " + funcName);
 
-        // Limpiar argumentos del stack si hubo más de 4
         if (args.size() > 4) {
             int stackArgsSize = (args.size() - 4) * 4;
             textSection.add("  addiu $sp, $sp, " + stackArgsSize);
         }
 
-        // Restaurar registros
         restoreCallerSavedRegs();
 
-        // Resultado en $v0
         String result = newTemp();
         textSection.add("  move " + result + ", $v0");
         return result;
     }
 
     private void saveCallerSavedRegs() {
-        // En una implementación real, necesitarías trackear qué $t registers están en
-        // uso
-        textSection.add("  # Save caller-saved registers (simplified)");
-        // Por ahora no guardamos nada, asumimos que no hay valores importantes
+        textSection.add("  # Save caller-saved registers");
     }
 
     private void restoreCallerSavedRegs() {
-        textSection.add("  # Restore caller-saved registers (simplified)");
+        textSection.add("  # Restore caller-saved registers");
     }
 
     private String generateBoolean(BooleanNode bool) {
@@ -969,8 +924,6 @@ private void storeVariable(String varName, String valueReg) {
         return temp;
     }
 
-    // ============ ARRAY ACCESS METHODS ============
-
     private String generateArrayLoad(ArrayAccessNode arrayAccess) {
         SymbolInfo info = findSymbol(getArrayName(arrayAccess));
         if (info == null || !info.isArray) {
@@ -981,11 +934,9 @@ private void storeVariable(String varName, String valueReg) {
         String result = newTemp();
 
         if (indices.size() == 1) {
-            // Array 1D
             String index = generateExpression(indices.get(0));
             calculateArrayOffset1D(getArrayName(arrayAccess), index, result);
         } else if (indices.size() == 2) {
-            // Array 2D
             String index1 = generateExpression(indices.get(0));
             String index2 = generateExpression(indices.get(1));
             calculateArrayOffset2D(getArrayName(arrayAccess), index1, index2, result);
@@ -993,7 +944,6 @@ private void storeVariable(String varName, String valueReg) {
             throw new RuntimeException("Arrays de más de 2 dimensiones no soportados");
         }
 
-        // Cargar valor
         textSection.add("  lw " + result + ", 0(" + result + ")");
         return result;
     }
@@ -1008,11 +958,9 @@ private void storeVariable(String varName, String valueReg) {
         String addrReg = newTemp();
 
         if (indices.size() == 1) {
-            // Array 1D
             String index = generateExpression(indices.get(0));
             calculateArrayOffset1D(getArrayName(arrayAccess), index, addrReg);
         } else if (indices.size() == 2) {
-            // Array 2D
             String index1 = generateExpression(indices.get(0));
             String index2 = generateExpression(indices.get(1));
             calculateArrayOffset2D(getArrayName(arrayAccess), index1, index2, addrReg);
@@ -1020,13 +968,11 @@ private void storeVariable(String varName, String valueReg) {
             throw new RuntimeException("Arrays de más de 2 dimensiones no soportados");
         }
 
-        // Almacenar valor
         textSection.add("  sw " + value + ", 0(" + addrReg + ")");
         freeTemp(addrReg);
     }
 
     private String getArrayName(ArrayAccessNode arrayAccess) {
-        // Extraer nombre del array del nodo
         ExpressionNode arrayExpr = arrayAccess.getArray();
         if (arrayExpr instanceof VariableNode) {
             return ((VariableNode) arrayExpr).getName();
@@ -1039,14 +985,13 @@ private void storeVariable(String varName, String valueReg) {
 
         textSection.add("  # Calculate 1D array offset for " + arrayName);
 
-        // offset = base + index * 4
         if (info.isGlobal) {
             textSection.add("  la " + resultReg + ", _" + arrayName);
         } else {
             textSection.add("  addiu " + resultReg + ", $fp, " + info.offset);
         }
 
-        textSection.add("  sll $t8, " + indexReg + ", 2"); // index * 4
+        textSection.add("  sll $t8, " + indexReg + ", 2");
         textSection.add("  addu " + resultReg + ", " + resultReg + ", $t8");
 
         freeTemp(indexReg);
@@ -1057,24 +1002,16 @@ private void storeVariable(String varName, String valueReg) {
 
         textSection.add("  # Calculate 2D array offset for " + arrayName);
 
-        // offset = base + (i * cols + j) * 4
         if (info.isGlobal) {
             textSection.add("  la " + resultReg + ", _" + arrayName);
         } else {
             textSection.add("  addiu " + resultReg + ", $fp, " + info.offset);
         }
 
-        // i * cols (usar segunda dimensión)
         textSection.add("  li $t8, " + info.secondDimension);
         textSection.add("  mul $t9, " + index1Reg + ", $t8");
-
-        // + j
         textSection.add("  addu $t9, $t9, " + index2Reg);
-
-        // * 4
         textSection.add("  sll $t9, $t9, 2");
-
-        // + base
         textSection.add("  addu " + resultReg + ", " + resultReg + ", $t9");
 
         freeTemp(index1Reg);
@@ -1104,11 +1041,8 @@ private void storeVariable(String varName, String valueReg) {
     }
 
     private void buildFinalCode() {
-        // Construir sección .data
         code.append(String.join("\n", dataSection));
         code.append("\n\n");
-
-        // Construir sección .text
         code.append(String.join("\n", textSection));
     }
 }

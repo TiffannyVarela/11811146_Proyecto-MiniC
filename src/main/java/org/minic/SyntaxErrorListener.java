@@ -3,6 +3,17 @@ package org.minic;
 import org.antlr.v4.runtime.*;
 
 public class SyntaxErrorListener extends BaseErrorListener {
+
+    private static class ErrorInfo {
+        int reportedLine;
+        int reportedCharPos;
+        int line;
+        int column;
+        String originalMessage;
+        String message;
+
+        
+    }
     
     @Override
     public void syntaxError(Recognizer<?, ?> recognizer, Object offendingSymbol,
@@ -32,7 +43,6 @@ public class SyntaxErrorListener extends BaseErrorListener {
                 return getFallbackInfo(reportedLine, reportedCharPos, msg);
             }
             
-            // Obtener el token que causó el error
             Token errorToken = null;
             if (offendingSymbol instanceof Token) {
                 errorToken = (Token) offendingSymbol;
@@ -49,13 +59,10 @@ public class SyntaxErrorListener extends BaseErrorListener {
                         Token token = tokens.get(i);
                         int type = token.getType();
                         
-                        // Ignorar espacios, comentarios, newlines
                         if (type != MiniCLexer.Whitespace && 
                             type != MiniCLexer.LineComment && 
                             type != MiniCLexer.BlockComment) {
                             
-                            
-                            // La columna es: posición del token + longitud del token
                             info.line = token.getLine();
                             info.column = token.getCharPositionInLine() + token.getText().length() + 1;
                             return info;
@@ -138,12 +145,4 @@ public class SyntaxErrorListener extends BaseErrorListener {
         return "error de sintaxis";
     }
     
-    private static class ErrorInfo {
-        int reportedLine;
-        int reportedCharPos;
-        int line;
-        int column;
-        String originalMessage;
-        String message;
-    }
 }

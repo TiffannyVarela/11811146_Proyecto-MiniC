@@ -11,7 +11,7 @@ public class ArrayDimensionsNode extends AstNode {
     }
     
     public List<Integer> getDimensions() {
-        return new ArrayList<>(dimensions); // Devuelve copia
+        return new ArrayList<>(dimensions);
     }
     
     public int getDimensionCount() {
@@ -22,7 +22,7 @@ public class ArrayDimensionsNode extends AstNode {
         if (index >= 0 && index < dimensions.size()) {
             return dimensions.get(index);
         }
-        return -1; // Error
+        return -1;
     }
     
     public boolean hasVariableDimensions() {
